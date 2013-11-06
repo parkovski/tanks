@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title></title>
+  </head>
+  <body>
+    Tanks<br>
+    Game name:<input type="text" id="gamename"><br>
+    <button onclick="startNewGame()">Start named game</button><br>
+    <button onclick="joinGame()">Join named game</button><br>
+    <button onclick="startSinglePlayer()">Start single player game</button><br>
+    <div id="status"></div>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script>
+      function startNewGame() {
+        var gamename = document.getElementById('gamename').value;
+        if (gamename.length === 0) {
+          $('#status').text('Game name cannot be empty.');
+          return;
+        }
+        $('#status').text('Trying to start game...');
+        $.ajax('/hasgame/' + gamename, {
+          dataType: 'text',
+          success: function(data) {
+            if (data !== 'true') {
+              window.location = '/new/' + gamename;
+            } else {
+              $('#status').text('This game already exists.');
+            }
+          },
+          error: function() {
+            $('#status').text('Couldn\'t start game.');
+          }
+        });
+      }
+      function joinGame() {
+        var gamename = document.getElementById('gamename').value;
+        if (gamename.length === 0) {
+          $('#status').text('Game name cannot be empty.');
+          return;
+        }
+        $('#status').text('Trying to join game...');
+        $.ajax('/hasgame/' + gamename, {
+          dataType: 'text',
+          success: function(data) {
+            if (data === 'true') {
+              window.location = '/game/' + gamename;
+            } else {
+              $('#status').text('This game does not exist yet.');
+            }
+          },
+          error: function() {
+            $('#status').text('Couldn\'t join game.');
+          }
+        });
+      }
+      function startSinglePlayer() {
+        window.location = '/singleplayer';
+      }
+    </script>
+  </body>
+</html>
