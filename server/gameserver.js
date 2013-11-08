@@ -4,8 +4,8 @@ var actorData = require('../client/actors');
 
 var setActorBehavior = require('./actorbehavior')(actorData);
 
-//var level = require('../levels/Then we will fight in the shade');
-var level = require('../levels/PlainMap');
+var level = require('../levels/Then we will fight in the shade');
+//var level = require('../levels/PlainMap');
 //var level = require('../levels/FirstMap');
 
 // ---------------
@@ -55,6 +55,7 @@ Game.prototype.createWalls = function() {
 Game.prototype.setCollisionHandler = function() {
   var listener = new box2d.Box2D.Dynamics.b2ContactListener();
 
+  var self = this;
   listener.BeginContact = function(contact) {
     var actorA = contact.GetFixtureA().GetBody().GetUserData();
     var actorB = contact.GetFixtureB().GetBody().GetUserData();
@@ -64,10 +65,10 @@ Game.prototype.setCollisionHandler = function() {
     }
     
     if (actorA.collide) {
-      actorA.collide(actorB);
+      actorA.collide(actorB, self);
     }
     if (actorB.collide) {
-      actorB.collide(actorA);
+      actorB.collide(actorA, self);
     }
   };
 
@@ -143,6 +144,24 @@ Game.prototype.stepAndGetUpdateList = function() {
   return {move: movelist, rotate: rotatelist};
 };
 
+var actor_applyBrakeForces = function() {
+  throw 'fixme!';
+  var body = this.body;
+  if (!body) return;
+  var velo = body.GetLinearVelocity();
+  var angVelo = body.GetAngularVelocity();
+  var force = body.m_force;
+  var torque = body.m_torque;
+
+  if (angVelo && !torque) {
+    if (angVelo < 0) {
+      body.ApplyTorque(Math.log(-angVelo + Math.E) * 50);
+    } else {
+      body.ApplyTorque(-Math.log(angVelo + Math.E) * 50);
+    }
+  }
+};
+
 var _applyForce = function(body, force, swap) {
   if (!body) return;
   var angle = body.GetAngle();
@@ -179,10 +198,12 @@ Game.prototype.setLevel = function(level) {
   this.background = level.background;
   this.music = level.music;
   this.actors = [];
-  level.players[0].type = 'standardTank';
+  level.players[0].type = 'heavyTank';
   level.players[1].type = 'heavyTank';
-  level.players[2].type = 'hoverTank';
-  level.players[3].type = 'hoverTank';
+  delete level.players[2];
+  delete level.players[3];
+  //level.players[2].type = 'hoverTank';
+  //level.players[3].type = 'hoverTank';
   var self = this;
   level.players.forEach(function(player) {
     self.createServerActor(
@@ -202,7 +223,7 @@ Game.prototype.removeActor = function(actor) {
     this.world.DestroyBody(this.actors[actor].body);
   }
   delete this.actors[actor];
-  this.send('remove actor', actor);
+  this.socket.emit('remove actor', actor);
 };
 
 Game.prototype.removeActorLater = function(actor) {
@@ -217,7 +238,8 @@ Game.prototype.createServerActor = function(type, x, y, r, gunR, owner) {
     y: y,
     applyForce: actor_applyForce,
     applySidewaysForce: actor_applySidewaysForce,
-    applyTorque: actor_applyTorque
+    applyTorque: actor_applyTorque,
+    applyBrakeForces: actor_applyBrakeForces
   };
   if (r !== void 0) actor.r = r;
   if (gunR !== void 0) actor.gunR = gunR;
@@ -228,25 +250,47 @@ Game.prototype.createServerActor = function(type, x, y, r, gunR, owner) {
   return actor;
 };
 
+Game.prototype.createServerActorEx = function(args) {
+  var actor = {
+    id: this.actors.length,
+    type: args.type,
+    x: args.x,
+    y: args.y,
+    r: args.r,
+    gunR: args.gunR,
+    owner: args.owner,
+    showTo: args.showTo,
+    applyForce: actor_applyForce,
+    applySidewaysForce: actor_applySidewaysForce,
+    applyTorque: actor_applyTorque,
+    applyBrakeForces: actor_applyBrakeForces
+  };
+  this.actors.push(actor);
+  setActorBehavior(actor, this);
+  this.addBody(actor);
+  return actor;
+};
+
+Game.prototype.createActorEx = function(args) {
+  var actor = this.createServerActorEx(args);
+  this.send('create actor', this.getClientActor(actor));
+};
+
 Game.prototype.createActor = function(type, x, y, r, owner) {
   var actor = this.createServerActor(type, x, y, r, void 0, owner);
   this.send('create actor', this.getClientActor(actor));
 };
 
 Game.prototype.getClientActor = function(actor) {
-  var a = {
+  return {
     id: actor.id,
     type: actor.type,
     x: actor.x,
-    y: actor.y
+    y: actor.y,
+    r: actor.r,
+    gunR: actor.gunR,
+    showTo: actor.showTo
   };
-  if (actor.r != void 0) {
-    a.r = actor.r;
-    if (actor.gunR != void 0) {
-      a.gunR = actor.gunR;
-    }
-  }
-  return a;
 };
 
 Game.prototype.actorsForSyncing = function() {
@@ -264,7 +308,7 @@ Game.prototype.start = function(socket) {
   setInterval(function() {
     self.startTurn();
     self.actors.forEach(function(actor) {
-      if (actor.act) self.act(actor);
+      self.act(actor);
     });
     self.sync();
     self.endTurn();
@@ -312,7 +356,8 @@ Game.prototype.sync = function() {
 
 Game.prototype.act = function(actor) {
   var socket = this.socket;
-  actor.act(this);
+  if (actor.act) actor.act(this);
+  //actor.applyBrakeForces();
   if (actor.data.maxLifetime) {
     if (++actor.lifetime > actor.data.maxLifetime) {
       this.removeActor(actor);
@@ -328,10 +373,18 @@ Game.prototype.act = function(actor) {
     });
   }
   if (actor.update.shoot) {
-    this.createActor(actor.data.gun.type, actor.x, actor.y, actor.gunR, actor);
+    var x = actor.x + 10 * Math.cos(actor.gunR);
+    var y = actor.y + 10 * Math.sin(actor.gunR);
+    this.createActor(actor.data.gun.type, x, y, actor.gunR, actor);
   }
   if (actor.update.layMine) {
-    this.createActor(actor.data.mine.type, actor.x, actor.y, 0, actor);
+    this.createActorEx({
+      type: actor.data.mine.type,
+      x: actor.x,
+      y: actor.y,
+      owner: actor,
+      showTo: actor.id
+    });
   }
   if (actor.update.health) {
     actor.health += actor.update.health;
@@ -448,8 +501,10 @@ module.exports = {
     io.sockets.on('connection', function(socket) {
       socket.on('start singleplayer', function(data) {
         var game = server.newGame();
-        socket.game = game;
+
         game.setLevel(level);
+
+        socket.game = game;
         socket.playerId = 0;
         if (!socket.game) {
           socket.emit('cant start');

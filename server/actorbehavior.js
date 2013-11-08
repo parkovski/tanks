@@ -93,6 +93,34 @@ var actions = {
         other.update.health -= this.data.damage;
         this.destroy();
       }
+    },
+    plasma: function(other) {
+      if (other === this.owner) {
+        return;
+      }
+      if (other.health) {
+        other.update.health -= this.data.damage;
+        this.destroy();
+      }
+    },
+    shotgun: function(other) {
+      if (other === this.owner) {
+        return;
+      }
+      if (other.health) {
+        other.update.health -= this.data.damage;
+        this.destroy();
+      }
+    },
+    explosionMine: function(other, game) {
+      if (other === this.owner) {
+        return;
+      }
+      if (other.health && other.data.playable) {
+        other.update.health -= this.data.damage;
+        game.createActor('mineExplosion', this.x, this.y);
+        this.destroy();
+      }
     }
   }
 };
@@ -101,7 +129,7 @@ module.exports = function(actors) {
   return function setActorBehavior(actor, game) {
     actor.data = actors[actor.type];
     actor.destroy = function() {
-      game.removeActor(this);
+      game.removeActorLater(this);
     }
     if (actor.data.baseSpeed) {
       actor.speed = actor.data.baseSpeed;

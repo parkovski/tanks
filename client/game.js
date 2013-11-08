@@ -28,7 +28,7 @@ $(function() {
   function drawActors() {
     for (var i = 0; i < actors.length; ++i) {
       var a = actors[i];
-      if (!a) continue;
+      if (!a || !a.gfx) continue;
       var x = a.x, y = a.y, r = a.r;
       var gfx = a.gfx;
       context.translate(x, y);
@@ -109,7 +109,9 @@ $(function() {
   function initActor(actor) {
     actor.data = actorData[actor.type];
     actor.graphic = actor.data.graphic;
-    actor.gfx = img[actor.graphic];
+    if (typeof actor.showTo === 'undefined' || actor.showTo === game.playerId) {
+      actor.gfx = img[actor.graphic];
+    }
     if (actor.data.gunGraphic) {
       actor.gunGraphic = actor.data.gunGraphic;
     }

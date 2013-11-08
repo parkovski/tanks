@@ -7,7 +7,7 @@ var actorData = {
     obstacle: true,
     turnBehavior: 'turn',
     gunRotationBehavior: 'gunOnly',
-    baseHealth: 25000,
+    baseHealth: 16000,
     baseSpeed: 3,
     force: 600,
     reverseFactor: 0.85,
@@ -31,7 +31,7 @@ var actorData = {
     obstacle: true,
     turnBehavior: 'turn',
     gunRotationBehavior: 'gunOnly',
-    baseHealth: 36000,
+    baseHealth: 18000,
     baseSpeed: 2.2,
     force: 800,
     reverseFactor: 0.70,
@@ -57,7 +57,7 @@ var actorData = {
     obstacle: true,
     turnBehavior: 'strafe',
     gunRotationBehavior: 'both',
-    baseHealth: 20000,
+    baseHealth: 14000,
     baseSpeed: 4.5,
     force: 500,
     reverseFactor: 1,
@@ -80,6 +80,7 @@ var actorData = {
     graphic: 'smallMine',
     collidable: true,
     obstacle: false,
+    damage: 3500,
     size: {"width":35,"height":35}
   },
   snareMine: {
@@ -99,7 +100,7 @@ var actorData = {
     graphic: 'missile',
     collidable: true,
     obstacle: true,
-    damage: 800,
+    damage: 2000,
     force: 600,
     baseSpeed: 8,
     maxLifetime: 200,
@@ -129,7 +130,7 @@ var actorData = {
     collidable: true,
     obstacle: true,
     damage: 400,
-    force: 50,
+    force: 500,
     baseSpeed: 10,
     maxLifetime: 200,
     creationSound: 'sndShotgun',
@@ -198,6 +199,12 @@ var actorData = {
     obstacle: false,
     baseSpeed: 5,
     maxLifetime: 8
+  },
+  mineExplosion: {
+    graphic: 'mineExplosion',
+    collidable: false,
+    obstacle: false,
+    maxLifetime: 5
   }
 };
 
