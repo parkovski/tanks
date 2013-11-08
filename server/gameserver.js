@@ -10,8 +10,11 @@ var level = require('../levels/Then we will fight in the shade');
 
 // ---------------
 
-function Game() {
+function Game(server, name) {
+  this._server = server;
+  this._name = name;
   this.socket = null;
+  this.playerCount = 1;
   this.invScale = 10;
   this.scale = 1 / this.invScale;
   /*this.setLevel({
@@ -25,6 +28,25 @@ function Game() {
     pieces: []
   });*/
 }
+
+Game.prototype.addPlayer = function() {
+  ++this.playerCount;
+};
+
+Game.prototype.removePlayer = function() {
+  --this.playerCount;
+  if (this.playerCount === 0) {
+    console.log('destroying game', this._name);
+    if (this.interval) {
+      clearInterval(this.interval);
+    }
+    // try to free up some stuff for gc
+    this.actors = null;
+    this.world = null;
+    this.socket = null;
+    this._server.removeGame(this._name);
+  }
+};
 
 Game.prototype.createWalls = function() {
   var width = 800 * this.scale;
@@ -199,7 +221,7 @@ Game.prototype.setLevel = function(level) {
   this.music = level.music;
   this.actors = [];
   level.players[0].type = 'heavyTank';
-  level.players[1].type = 'heavyTank';
+  level.players[1].type = 'hoverTank';
   delete level.players[2];
   delete level.players[3];
   //level.players[2].type = 'hoverTank';
@@ -223,7 +245,7 @@ Game.prototype.removeActor = function(actor) {
     this.world.DestroyBody(this.actors[actor].body);
   }
   delete this.actors[actor];
-  this.socket.emit('remove actor', actor);
+  this.send('remove actor', actor);
 };
 
 Game.prototype.removeActorLater = function(actor) {
@@ -260,20 +282,28 @@ Game.prototype.createServerActorEx = function(args) {
     gunR: args.gunR,
     owner: args.owner,
     showTo: args.showTo,
+    target: args.target,
     applyForce: actor_applyForce,
     applySidewaysForce: actor_applySidewaysForce,
     applyTorque: actor_applyTorque,
     applyBrakeForces: actor_applyBrakeForces
   };
-  this.actors.push(actor);
-  setActorBehavior(actor, this);
-  this.addBody(actor);
-  return actor;
+  if (args.delay) {
+    this._toCreate.push(actor);
+    return null;
+  } else {
+    this.actors.push(actor);
+    setActorBehavior(actor, this);
+    this.addBody(actor);
+    return actor;
+  }
 };
 
 Game.prototype.createActorEx = function(args) {
   var actor = this.createServerActorEx(args);
-  this.send('create actor', this.getClientActor(actor));
+  if (actor) {
+    this.send('create actor', this.getClientActor(actor));
+  }
 };
 
 Game.prototype.createActor = function(type, x, y, r, owner) {
@@ -305,7 +335,7 @@ Game.prototype.actorsForSyncing = function() {
 Game.prototype.start = function(socket) {
   this.socket = socket;
   var self = this;
-  setInterval(function() {
+  this.interval = setInterval(function() {
     self.startTurn();
     self.actors.forEach(function(actor) {
       self.act(actor);
@@ -318,22 +348,34 @@ Game.prototype.start = function(socket) {
 Game.prototype.startTurn = function() {
   this.messages = [];
   this._toRemove = [];
+  this._toCreate = [];
 };
 
 Game.prototype.send = function(name, args) {
   this.messages.push({name: name, args: args});
 };
 
-Game.prototype.endTurn = function() {
-  if (this.messages.length === 1) {
-    this.socket.emit(this.messages[0].name, this.messages[0].args);
-  } else if (this.messages.length > 1) {
-    this.socket.emit('message group', this.messages);
+Game.prototype.sendNow = function(name, args) {
+  var socket = this.socket;
+  if (this._socketRoom) {
+    socket = io.sockets.to(this._socketRoom);
   }
+  socket.emit(name, args);
+};
+
+Game.prototype.endTurn = function() {
   var self = this;
   this._toRemove.forEach(function(id) {
     self.removeActor(id);
   });
+  this._toCreate.forEach(function(actor) {
+    self.createActorEx(actor);
+  });
+  if (this.messages.length === 1) {
+    this.sendNow(this.messages[0].name, this.messages[0].args);
+  } else if (this.messages.length > 1) {
+    this.sendNow('message group', this.messages);
+  }
 };
 
 Game.prototype.sync = function() {
@@ -418,7 +460,7 @@ GameServer.prototype.getGame = function(name, password) {
  * If the new game was created, it is returned. If no name is specified,
  * a single player game with a unique id is created.
  */
-GameServer.prototype.newGame = function(name) {
+GameServer.prototype.newGame = function(name, password) {
   if (name) {
     name = 'g:' + name;
   } else {
@@ -429,15 +471,40 @@ GameServer.prototype.newGame = function(name) {
   if (game) {
     return null;
   }
-  return this._games[name] = new Game();
+  game = new Game(this, name);
+  game.password = password;
+  this._games[name] = game;
+  return game;
+};
+
+/**
+ * Should only be called by Game.removePlayer when the player count
+ * reaches zero.
+ */
+GameServer.prototype.removeGame = function(name) {
+  delete this._games[name];
 };
 
 var server = new GameServer();
 
-function setupSocketForGame(socket) {
+function setupSocketForGame(socket, game) {
+  game.setLevel(level);
+
+  socket.game = game;
+  socket.playerId = 0;
+
+  socket.emit('set background', game.background);
+  socket.emit('set music', game.music);
+  socket.emit('set actors', game.actorsForSyncing());
+  socket.emit('set player id', socket.playerId);
+
   // Not for production
   socket.on('change id', function(data) {
     socket.playerId = data;
+  });
+
+  socket.on('disconnect', function() {
+    socket.game.removePlayer();
   });
 
   socket.on('move', function(data) {
@@ -499,27 +566,58 @@ function setupSocketForGame(socket) {
 module.exports = {
   use: function(io) {
     io.sockets.on('connection', function(socket) {
-      socket.on('start singleplayer', function(data) {
+      socket.on('start singleplayer', function() {
         var game = server.newGame();
-
-        game.setLevel(level);
-
-        socket.game = game;
-        socket.playerId = 0;
-        if (!socket.game) {
-          socket.emit('cant start');
+        if (!game) {
+          socket.emit('cant start', 'failed to create game');
           socket.disconnect();
           return;
         }
 
-        socket.emit('set background', socket.game.background);
-        socket.emit('set music', socket.game.music);
-        socket.emit('set actors', socket.game.actorsForSyncing());
-        socket.emit('set player id', socket.playerId);
-
-        setupSocketForGame(socket);
+        setupSocketForGame(socket, game);
         game.start(socket);
-        socket.emit('start game');
+        game.sendNow('start game');
+      });
+
+      socket.on('new multiplayer game', function(name) {
+        if (server.hasGame(name)) {
+          socket.emit('cant start', 'game already exists');
+          socket.disconnect();
+          return;
+        }
+
+        var game = server.newGame(name);
+        if (!game) {
+          socket.emit('cant start', 'failed to create game');
+          socket.disconnect();
+          return;
+        }
+
+        setupSocketForGame(socket, game);
+        socket.join('g:' + name);
+        game._socketRoom = 'g:' + name;
+      });
+
+      socket.on('join multiplayer game', function(name) {
+        var game = server.getGame(name);
+        if (!game) {
+          socket.emit('cant start', 'game does not exist');
+          socket.disconnect();
+          return;
+        }
+
+        game.addPlayer();
+        setupSocketForGame(socket, game);
+        socket.join('g:' + name);
+        game._socketRoom = 'g:' + name;
+        game.sendNow('update player count', game.playerCount);
+      });
+
+      socket.on('start multiplayer game', function() {
+        var game = socket.game;
+        if (!game) return;
+        game.start();
+        game.sendNow('start game');
       });
     });
   },

@@ -54,6 +54,9 @@ var actions = {
     },
     fireBall: function() {
       actions.move.call(this, 1);
+    },
+    spider: function() {
+      actions.move.call(this, 1);
     }
   },
   turnBehavior: {
@@ -113,6 +116,32 @@ var actions = {
       }
     },
     explosionMine: function(other, game) {
+      if (other === this.owner) {
+        return;
+      }
+      if (other.health && other.data.playable) {
+        other.update.health -= this.data.damage;
+        game.createActor('mineExplosion', this.x, this.y);
+        this.destroy();
+      }
+    },
+    spiderMine: function(other, game) {
+      if (other === this.owner || !other.data.playable) {
+        return;
+      }
+      game.createActor('mineExplosion', this.x, this.y);
+      game.createActorEx({
+        type: 'spider',
+        x: this.x,
+        y: this.y,
+        r: other.r,
+        target: other,
+        owner: this.owner,
+        delay: true
+      });
+      this.destroy();
+    },
+    spider: function(other, game) {
       if (other === this.owner) {
         return;
       }

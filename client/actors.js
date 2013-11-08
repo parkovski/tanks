@@ -205,6 +205,16 @@ var actorData = {
     collidable: false,
     obstacle: false,
     maxLifetime: 5
+  },
+
+  spider: {
+    graphic: 'spider1',
+    collidable: true,
+    obstacle: false,
+    baseSpeed: 5,
+    force: 50,
+    damage: 1500,
+    maxLifetime: 150
   }
 };
 
