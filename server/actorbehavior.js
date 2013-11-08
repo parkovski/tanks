@@ -58,26 +58,10 @@ var actions = {
   },
   turnBehavior: {
     turn: function(direction) {
-      if (direction < 0) {
-        this.applyTorque(-1);
-        //this.r -= this.rotation;
-      } else {
-        this.applyTorque(1);
-        //this.r += this.rotation;
-      }
-      this.update.rotation = true;
+      this.applyTorque(direction);
     },
     strafe: function(direction) {
-      if (direction < 0) {
-        this.applySidewaysForce(-1);
-        //this.x += this.speed * Math.cos(this.r - Math.PI / 2);
-        //this.y += this.speed * Math.sin(this.r - Math.PI / 2);
-      } else {
-        this.applySidewaysForce(1);
-        //this.x += this.speed * Math.cos(this.r + Math.PI / 2);
-        //this.y += this.speed * Math.sin(this.r + Math.PI / 2);
-      }
-      this.update.position = true;
+      this.applySidewaysForce(direction);
     }
   },
   gunRotationBehavior: {
@@ -90,42 +74,24 @@ var actions = {
       this.update.gunRotation = true;
     },
     both: function(direction) {
-      if (direction < 0) {
-        //this.r -= this.rotation;
-        this.applyTorque(-1);
-        this.gunR = this.body.GetAngle();
-      } else {
-        //this.r += this.rotation;
-        this.applyTorque(1);
-        this.gunR = this.body.GetAngle();
-      }
-      this.update.rotation = true;
+      this.applyTorque(direction);
+      this.gunR = this.body.GetAngle();
       this.update.gunRotation = true;
     }
   },
   move: function(direction) {
-    if (direction < 0) {
-      this.applyForce(-1);
-      //this.x -= this.speed * this.data.reverseFactor * Math.cos(this.r);
-      //this.y -= this.speed * this.data.reverseFactor * Math.sin(this.r);
-    } else {
-      this.applyForce(1);
-      //this.x += this.speed * Math.cos(this.r);
-      //this.y += this.speed * Math.sin(this.r);
-    }
-    this.update.position = true;
+    this.applyForce(direction);
   },
   collide: {
     tank: function(other) {
     },
     missile: function(other) {
-      if (this.owner) {
-      //if (other === this.owner) {
+      if (other === this.owner) {
         return;
       }
       if (other.health) {
         other.update.health -= this.data.damage;
-        //this.destroy();
+        this.destroy();
       }
     }
   }
@@ -162,15 +128,11 @@ module.exports = function(actors) {
       actor.gunCdTimer = 0;
       actor.mineCdTimer = 0;
       actor.update = {
-        position: false,
-        rotation: false,
         gunRotation: false,
         shoot: false,
         layMine: false,
         health: 0,
         reset: function() {
-          this.position = false;
-          this.rotation = false;
           this.gunRotation = false;
           this.shoot = false;
           this.layMine = false;
@@ -181,11 +143,7 @@ module.exports = function(actors) {
       actor.act = actions.act[actor.type];
       actor.collide = actions.collide[actor.type];
       actor.update = {
-        position: false,
-        rotation: false,
         reset: function() {
-          this.position = false;
-          this.rotation = false;
         }
       };
     }

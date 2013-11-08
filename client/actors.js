@@ -9,6 +9,7 @@ var actorData = {
     gunRotationBehavior: 'gunOnly',
     baseHealth: 25000,
     baseSpeed: 3,
+    force: 600,
     reverseFactor: 0.85,
     mine: {
       type: 'explosionMine',
@@ -32,6 +33,7 @@ var actorData = {
     gunRotationBehavior: 'gunOnly',
     baseHealth: 36000,
     baseSpeed: 2.2,
+    force: 800,
     reverseFactor: 0.70,
     mine: {
       type: 'snareMine',
@@ -57,6 +59,7 @@ var actorData = {
     gunRotationBehavior: 'both',
     baseHealth: 20000,
     baseSpeed: 4.5,
+    force: 500,
     reverseFactor: 1,
     mine: {
       type: 'spiderMine',
@@ -97,6 +100,7 @@ var actorData = {
     collidable: true,
     obstacle: true,
     damage: 800,
+    force: 600,
     baseSpeed: 8,
     maxLifetime: 200,
     creationSound: 'sndRocketLaunch',
@@ -105,8 +109,9 @@ var actorData = {
   plasma: {
     graphic: 'plasma',
     collidable: true,
-    obstacle: true,
+    obstacle: false,
     damage: 800,
+    force: 50,
     baseSpeed: 4.5,
     maxLifetime: 200,
     creationSound: 'sndPlasmaShot',
@@ -124,6 +129,7 @@ var actorData = {
     collidable: true,
     obstacle: true,
     damage: 400,
+    force: 50,
     baseSpeed: 10,
     maxLifetime: 200,
     creationSound: 'sndShotgun',

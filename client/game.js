@@ -83,16 +83,16 @@ $(function() {
     var a = actors[data.index];
     a.x = data.x;
     a.y = data.y;
-    drawBackground();
-    drawActors();
   });
 
   messageDef('rotateto', function(data) {
     var a = actors[data.index];
     a.r = data.r;
-    a.gunR = data.gunR;
-    drawBackground();
-    drawActors();
+  });
+
+  messageDef('rotategunto', function(data) {
+    var a = actors[data.index];
+    a.gunR = data.r;
   });
 
   messageDef('sethealth', function(data) {

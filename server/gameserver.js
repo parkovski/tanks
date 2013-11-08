@@ -4,18 +4,17 @@ var actorData = require('../client/actors');
 
 var setActorBehavior = require('./actorbehavior')(actorData);
 
-var level = require('../levels/Then we will fight in the shade');
-//var level = require('../levels/PlainMap');
+//var level = require('../levels/Then we will fight in the shade');
+var level = require('../levels/PlainMap');
 //var level = require('../levels/FirstMap');
 
 // ---------------
 
 function Game() {
   this.socket = null;
-  this.world = new box2d.b2World(new box2d.b2Vec2(0, 0), true);
   this.invScale = 10;
   this.scale = 1 / this.invScale;
-  this.setLevel({
+  /*this.setLevel({
     background: 'map3',
     music: 'elevatorMusic',
     players: [
@@ -24,9 +23,7 @@ function Game() {
       {x: 200, y: 200}
     ],
     pieces: []
-  });
-  this.createWalls();
-  this.setCollisionHandler();
+  });*/
 }
 
 Game.prototype.createWalls = function() {
@@ -58,7 +55,7 @@ Game.prototype.createWalls = function() {
 Game.prototype.setCollisionHandler = function() {
   var listener = new box2d.Box2D.Dynamics.b2ContactListener();
 
-  listener.PostSolve = function(contact, impulse) {
+  listener.BeginContact = function(contact) {
     var actorA = contact.GetFixtureA().GetBody().GetUserData();
     var actorB = contact.GetFixtureB().GetBody().GetUserData();
 
@@ -106,15 +103,15 @@ Game.prototype.addBody = function(actor) {
   bodyDef.angle = actor.r || 0;
 
   var fixDef = new box2d.b2FixtureDef();
-  fixDef.density = 1;
-  fixDef.friction = 0;
-  fixDef.restitution = 1;
-  fixDef.shape = new box2d.b2PolygonShape();
-  fixDef.shape.SetAsBox(width / 2, height / 2);
-
-  if (!actor.data.obstacle) {
+  if (actor.data.obstacle) {
+    fixDef.density = 1;
+    fixDef.friction = 0;
+    fixDef.restitution = 1;
+  } else {
     fixDef.isSensor = true;
   }
+  fixDef.shape = new box2d.b2PolygonShape();
+  fixDef.shape.SetAsBox(width / 2, height / 2);
 
   actor.body = this.world.CreateBody(bodyDef);
   actor.body.CreateFixture(fixDef);
@@ -132,7 +129,7 @@ Game.prototype.stepAndGetUpdateList = function() {
     var x = pos.x * self.invScale;
     var y = pos.y * self.invScale;
     var r = actor.body.GetAngle();
-    if ((actor.r !== void 0 && r !== actor.r) || actor.update.gunRotation) {
+    if (actor.r !== void 0 && r !== actor.r) {
       actor.r = r;
       rotatelist.push(actor.id);
     }
@@ -148,7 +145,6 @@ Game.prototype.stepAndGetUpdateList = function() {
 
 var _applyForce = function(body, force, swap) {
   if (!body) return;
-  force *= 600;
   var angle = body.GetAngle();
   var fy = force * Math.sin(angle);
   var fx = force * Math.cos(angle);
@@ -162,11 +158,11 @@ var _applyForce = function(body, force, swap) {
 };
 
 var actor_applyForce = function(force) {
-  _applyForce(this.body, force, false);
+  _applyForce(this.body, force * this.data.force, false);
 };
 
 var actor_applySidewaysForce = function(force) {
-  _applyForce(this.body, force, true);
+  _applyForce(this.body, force * this.data.force, true);
 };
 
 var actor_applyTorque = function(torque) {
@@ -176,32 +172,25 @@ var actor_applyTorque = function(torque) {
 };
 
 Game.prototype.setLevel = function(level) {
+  this.world = new box2d.b2World(new box2d.b2Vec2(0, 0), true);
+  this.createWalls();
+  this.setCollisionHandler();
+
   this.background = level.background;
   this.music = level.music;
-  this.players = [];
   this.actors = [];
+  level.players[0].type = 'standardTank';
+  level.players[1].type = 'heavyTank';
+  level.players[2].type = 'hoverTank';
+  level.players[3].type = 'hoverTank';
   var self = this;
-  /*level.players.forEach(function(player) {
-    self.players.push({type: 'heavyTank', x: +player.x, y: +player.y, r: 0, gunR: 0});
-  });*/
-  self.players.push({type: 'standardTank', x: +level.players[0].x, y: +level.players[0].y, r: 0, gunR: 0});
-  self.players.push({type: 'heavyTank', x: +level.players[1].x, y: +level.players[1].y, r: 0, gunR: 0});
-  self.players.push({type: 'hoverTank', x: +level.players[2].x, y: +level.players[2].y, r: 0, gunR: 0});
-  this.players.forEach(function(player) {
-    self.actors.push(player);
+  level.players.forEach(function(player) {
+    self.createServerActor(
+      player.type, +player.x, +player.y, 0, 0
+    );
   });
   level.pieces.forEach(function(actor) {
-    actor.x = +actor.x;
-    actor.y = +actor.y;
-    self.actors.push(actor);
-  });
-  this.actors.forEach(function(actor, index) {
-    actor.id = index;
-    actor.applyForce = actor_applyForce;
-    actor.applySidewaysForce = actor_applySidewaysForce;
-    actor.applyTorque = actor_applyTorque;
-    setActorBehavior(actor, this);
-    self.addBody(actor);
+    self.createServerActor(actor.type, +actor.x, +actor.y, +actor.r);
   });
 };
 
@@ -216,21 +205,31 @@ Game.prototype.removeActor = function(actor) {
   this.send('remove actor', actor);
 };
 
-Game.prototype.createActor = function(name, x, y, r, owner) {
+Game.prototype.removeActorLater = function(actor) {
+  this._toRemove.push(actor.id);
+};
+
+Game.prototype.createServerActor = function(type, x, y, r, gunR, owner) {
   var actor = {
     id: this.actors.length,
-    type: name,
+    type: type,
     x: x,
     y: y,
     applyForce: actor_applyForce,
     applySidewaysForce: actor_applySidewaysForce,
     applyTorque: actor_applyTorque
   };
-  if (r) actor.r = r;
+  if (r !== void 0) actor.r = r;
+  if (gunR !== void 0) actor.gunR = gunR;
   if (owner) actor.owner = owner;
   this.actors.push(actor);
   setActorBehavior(actor, this);
   this.addBody(actor);
+  return actor;
+};
+
+Game.prototype.createActor = function(type, x, y, r, owner) {
+  var actor = this.createServerActor(type, x, y, r, void 0, owner);
   this.send('create actor', this.getClientActor(actor));
 };
 
@@ -274,6 +273,7 @@ Game.prototype.start = function(socket) {
 
 Game.prototype.startTurn = function() {
   this.messages = [];
+  this._toRemove = [];
 };
 
 Game.prototype.send = function(name, args) {
@@ -287,6 +287,9 @@ Game.prototype.endTurn = function() {
     this.socket.emit('message group', this.messages);
   }
   var self = this;
+  this._toRemove.forEach(function(id) {
+    self.removeActor(id);
+  });
 };
 
 Game.prototype.sync = function() {
@@ -302,8 +305,7 @@ Game.prototype.sync = function() {
   lists.rotate.forEach(function(id) {
     self.send('rotateto', {
       index: id,
-      r: self.actors[id].r,
-      gunR: self.actors[id].gunR
+      r: self.actors[id].r
     });
   });
 };
@@ -319,25 +321,17 @@ Game.prototype.act = function(actor) {
   if (!this.actors[actor.id]) {
     return;
   }
-  /*if (actor.update.position) {
-    this.send('moveto', {
+  if (actor.update.gunRotation) {
+    this.send('rotategunto', {
       index: actor.id,
-      x: actor.x,
-      y: actor.y
+      r: actor.gunR
     });
   }
-  if (actor.update.rotation || actor.update.gunRotation) {
-    this.send('rotateto', {
-      index: actor.id,
-      r: actor.r,
-      gunR: actor.gunR
-    });
-  }*/
   if (actor.update.shoot) {
-    this.createActor(actor.data.gun.type, actor.x, actor.y, actor.gunR, this);
+    this.createActor(actor.data.gun.type, actor.x, actor.y, actor.gunR, actor);
   }
   if (actor.update.layMine) {
-    this.createActor(actor.data.mine.type, actor.x, actor.y, actor.gunR, this);
+    this.createActor(actor.data.mine.type, actor.x, actor.y, 0, actor);
   }
   if (actor.update.health) {
     actor.health += actor.update.health;
@@ -394,56 +388,56 @@ function setupSocketForGame(socket) {
   });
 
   socket.on('move', function(data) {
-    var player = this.game.players[this.playerId];
+    var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.moveDirection = data;
   });
 
   socket.on('stopmove', function() {
-    var player = this.game.players[this.playerId];
+    var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.moveDirection = 0;
   });
 
   socket.on('rotate', function(data) {
-    var player = this.game.players[this.playerId];
+    var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.turnDirection = data;
   });
 
   socket.on('stoprotate', function() {
-    var player = this.game.players[this.playerId];
+    var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.turnDirection = 0;
   });
 
   socket.on('rotategun', function(data) {
-    var player = this.game.players[this.playerId];
+    var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.gunRotationDirection = data;
   });
 
   socket.on('stoprotategun', function() {
-    var player = this.game.players[this.playerId];
+    var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.gunRotationDirection = 0;
   });
 
   socket.on('rotategunstep', function(data) {
-    var player = this.game.players[this.playerId];
+    var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.gunRotationDirection = data;
     player.gunRotationSingleStep = true;
   });
 
   socket.on('fire', function() {
-    var player = this.game.players[this.playerId];
+    var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.update.shoot = true;
   });
 
   socket.on('mine', function() {
-    var player = this.game.players[this.playerId];
+    var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.update.layMine = true;
   });
