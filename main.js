@@ -36,6 +36,7 @@ if (!config.port && process.env.PORT) {
   for (var def in defaults) {
     if (defaults.hasOwnProperty(def)) {
       if (typeof config[def] === 'undefined') {
+        console.log('using default', def, '=', defaults[def]);
         config[def] = defaults[def];
       }
     }
