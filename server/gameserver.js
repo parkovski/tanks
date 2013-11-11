@@ -447,7 +447,13 @@ Game.prototype.act = function(actor) {
 function GameServer() {
   this._games = {};
   this._singlePlayerId = 0;
+  this._gameCount = 0;
+  this._exitAfterGamesFinished = false;
 }
+
+GameServer.prototype.setExitAfterGamesFinished = function(exit) {
+  this._exitAfterGamesFinished = exit;
+};
 
 GameServer.prototype.hasGame = function(name) {
   return !!this._games['g:' + name];
@@ -481,6 +487,7 @@ GameServer.prototype.newGame = function(name, sockets) {
   }
   game = new Game(this, name, socket, sockets);
   this._games[name] = game;
+  ++this._gameCount;
   return game;
 };
 
@@ -490,6 +497,10 @@ GameServer.prototype.newGame = function(name, sockets) {
  */
 GameServer.prototype.removeGame = function(name) {
   delete this._games[name];
+  --this._gameCount;
+  if (this._gameCount === 0 && this._exitAfterGamesFinished) {
+    process.exit();
+  }
 };
 
 var server = new GameServer();

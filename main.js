@@ -31,7 +31,8 @@ if (!config.port && process.env.PORT) {
 (function() {
   var defaults = {
     port: 80,
-    root: '/'
+    root: '/',
+    exitAfterGamesFinished: false
   };
   for (var def in defaults) {
     if (defaults.hasOwnProperty(def)) {
@@ -128,6 +129,10 @@ var app = connect()
     (pages[pageName] || pages.error)(req, res);
   })
   .listen(port);
+
+if (config.exitAfterGamesFinished) {
+  gameserver.server.setExitAfterGamesFinished(true);
+}
 
 var io = socketio.listen(app, {resource: config.root + 'socket.io'});
 gameserver.use(config, io);
