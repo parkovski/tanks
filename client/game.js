@@ -2,9 +2,9 @@ var game = game || {};
 game.start = function(mode) {
   var canvas = document.getElementById('canvas');
   var context = canvas.getContext('2d');
+  var socketPort = game.config.port;
   var socket = game.socket = io.connect(
-    window.location.protocol + '//' + window.location.host,
-    { resource: game.config.root + 'socket.io' }
+    location.protocol + '//' + location.hostname + ':' + socketPort
   );
 
   var img = {}, snd = {};

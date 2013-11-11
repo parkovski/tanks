@@ -148,7 +148,7 @@
     <script src="{{root}}game.js"></script>
     <script>
       var game = game || {};
-      game.config = { root: '{{root}}' };
+      game.config = { root: '{{root}}', port: {{port}} };
       $(function() {
         game.start('{{mode}}');
       });
