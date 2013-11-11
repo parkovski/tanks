@@ -14,12 +14,24 @@ catch (e) {
   config = {};
 }
 
-// Allow command line config in the form -c[option]=[value].
+// Allow command line config in the form -v[option]=[value].
 // This overrides config.json.
+// You can also specify a file to use instead of config.json
+// with the -c [config file] option.
 process.argv.forEach(function(val, index, array) {
-  var ex = /-c([a-zA-Z0-9]+)=(.+)/.exec(val);
+  var ex = /-v([a-zA-Z0-9]+)=(.+)/.exec(val);
   if (ex) {
     config[ex[1]] = ex[2];
+  } else if (val === '-c') {
+    if (array[index + 1]) {
+      try {
+        var overrideConfig = require(array[index + 1]);
+        config = overrideConfig;
+        console.log('using config', array[index + 1]);
+      } catch (e) {
+        console.log('warning: couldn\'t load config', array[index + 1]);
+      }
+    }
   }
 });
 
