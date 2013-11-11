@@ -31,7 +31,7 @@ if (!config.port && process.env.PORT) {
 (function() {
   var defaults = {
     port: 80,
-    root: ''
+    root: '/'
   };
   for (var def in defaults) {
     if (defaults.hasOwnProperty(def)) {
@@ -50,20 +50,41 @@ if (!config.port && process.env.PORT) {
 // - Default: 80
 var port = +config.port;
 
-function getPage(pageName) {
+function getPage(pageName, mode) {
+  config.mode = mode;
   var pageText = fs.readFileSync(__dirname + pageName) + '';
   // Replace {{text}} with config values
   pageText = pageText.replace(/\{\{([a-zA-Z0-9]+)\}\}/g, function(match, p) {
     return config[p] || '';
   });
+
+  // Replace {{mode:[mode] ... }} with stuff conditional on the mode.
+  // Also valid is {{mode:![mode] ... }}, opposite of above.
+  // Regexes are the worst. There has to be a special condition to not
+  // match an additional {{ or it won't work :(
+  pageText = pageText.replace(
+    /\{\{mode:(!?)([a-zA-Z0-9]+)((?:(?:.|\n)(?!\{\{))*)\}\}/gm,
+    function(match, p1, p2, p3) {
+      var cond = config.mode === p2;
+      if (p1 === '!') {
+        cond = config.mode !== p2;
+      }
+      if (cond) {
+        return p3;
+      } else {
+        return '';
+      }
+    }
+  );
   return pageText;
 };
 
-var indexPage, singlePlayerPage, multiPlayerPage;
+var indexPage, singlePlayerPage, newGamePage, joinGamePage;
 
-indexPage = getPage('/html/index.html');
-singlePlayerPage = getPage('/html/singleplayer.html');
-multiPlayerPage = getPage('/html/multiplayer.html');
+indexPage = getPage('/html/index.html', 'index');
+singlePlayerPage = getPage('/html/game.html', 'singleplayer');
+newGamePage = getPage('/html/game.html', 'newgame');
+joinGamePage = getPage('/html/game.html', 'joingame');
 
 var pages = {
   'index': function(req, res) {
@@ -73,7 +94,7 @@ var pages = {
     res.end(singlePlayerPage);
   },
   'game': function(req, res) {
-    res.end(multiPlayerPage);
+    res.end(joinGamePage);
   },
   'hasgame': function(req, res) {
     // ajax call
@@ -84,8 +105,7 @@ var pages = {
     }
   },
   'new': function(req, res) {
-    res.writeHeader(302, {'Location': '/game/' + req.args[0]});
-    res.end();
+    res.end(newGamePage);
   },
   'error': function(req, res) {
     res.end('an error occurred :(. press back.');
@@ -109,5 +129,5 @@ var app = connect()
   })
   .listen(port);
 
-var io = socketio.listen(app);
-gameserver.use(io);
+var io = socketio.listen(app, {resource: config.root + 'socket.io'});
+gameserver.use(config, io);

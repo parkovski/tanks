@@ -10,13 +10,15 @@ var level = require('../levels/Then we will fight in the shade');
 
 // ---------------
 
-function Game(server, name) {
+function Game(server, name, socket, sockets) {
   this._server = server;
   this._name = name;
-  this.socket = null;
+  this.socket = socket;
+  this.sockets = sockets;
   this.playerCount = 1;
   this.invScale = 10;
   this.scale = 1 / this.invScale;
+  this._nextPlayerId = 0;
   /*this.setLevel({
     background: 'map3',
     music: 'elevatorMusic',
@@ -28,6 +30,10 @@ function Game(server, name) {
     pieces: []
   });*/
 }
+
+Game.prototype.nextPlayerId = function() {
+  return this._nextPlayerId++;
+};
 
 Game.prototype.addPlayer = function() {
   ++this.playerCount;
@@ -44,6 +50,7 @@ Game.prototype.removePlayer = function() {
     this.actors = null;
     this.world = null;
     this.socket = null;
+    this.sockets = null;
     this._server.removeGame(this._name);
   }
 };
@@ -220,8 +227,8 @@ Game.prototype.setLevel = function(level) {
   this.background = level.background;
   this.music = level.music;
   this.actors = [];
-  level.players[0].type = 'heavyTank';
-  level.players[1].type = 'hoverTank';
+  level.players[0].type = 'standardTank';
+  level.players[1].type = 'standardTank';
   delete level.players[2];
   delete level.players[3];
   //level.players[2].type = 'hoverTank';
@@ -332,8 +339,7 @@ Game.prototype.actorsForSyncing = function() {
   return syncList;
 };
 
-Game.prototype.start = function(socket) {
-  this.socket = socket;
+Game.prototype.start = function() {
   var self = this;
   this.interval = setInterval(function() {
     self.startTurn();
@@ -358,7 +364,7 @@ Game.prototype.send = function(name, args) {
 Game.prototype.sendNow = function(name, args) {
   var socket = this.socket;
   if (this._socketRoom) {
-    socket = io.sockets.to(this._socketRoom);
+    socket = this.sockets.to(this._socketRoom);
   }
   socket.emit(name, args);
 };
@@ -449,9 +455,6 @@ GameServer.prototype.hasGame = function(name) {
 
 GameServer.prototype.getGame = function(name, password) {
   var game = this._games['g:' + name];
-  if (!game || game.password !== password) {
-    return null;
-  }
   return game;
 };
 
@@ -460,7 +463,12 @@ GameServer.prototype.getGame = function(name, password) {
  * If the new game was created, it is returned. If no name is specified,
  * a single player game with a unique id is created.
  */
-GameServer.prototype.newGame = function(name, password) {
+GameServer.prototype.newGame = function(name, sockets) {
+  var socket = null;
+  if (typeof name !== 'string') {
+    socket = name;
+    name = null;
+  }
   if (name) {
     name = 'g:' + name;
   } else {
@@ -471,8 +479,7 @@ GameServer.prototype.newGame = function(name, password) {
   if (game) {
     return null;
   }
-  game = new Game(this, name);
-  game.password = password;
+  game = new Game(this, name, socket, sockets);
   this._games[name] = game;
   return game;
 };
@@ -491,7 +498,7 @@ function setupSocketForGame(socket, game) {
   game.setLevel(level);
 
   socket.game = game;
-  socket.playerId = 0;
+  socket.playerId = game.nextPlayerId();
 
   socket.emit('set background', game.background);
   socket.emit('set music', game.music);
@@ -564,10 +571,10 @@ function setupSocketForGame(socket, game) {
 }
 
 module.exports = {
-  use: function(io) {
+  use: function(config, io) {
     io.sockets.on('connection', function(socket) {
       socket.on('start singleplayer', function() {
-        var game = server.newGame();
+        var game = server.newGame(socket, io.sockets);
         if (!game) {
           socket.emit('cant start', 'failed to create game');
           socket.disconnect();
@@ -575,7 +582,7 @@ module.exports = {
         }
 
         setupSocketForGame(socket, game);
-        game.start(socket);
+        game.start();
         game.sendNow('start game');
       });
 
@@ -586,7 +593,7 @@ module.exports = {
           return;
         }
 
-        var game = server.newGame(name);
+        var game = server.newGame(name, io.sockets);
         if (!game) {
           socket.emit('cant start', 'failed to create game');
           socket.disconnect();

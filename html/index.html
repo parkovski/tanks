@@ -19,11 +19,11 @@
           return;
         }
         $('#status').text('Trying to start game...');
-        $.ajax('/hasgame/' + gamename, {
+        $.ajax('{{root}}hasgame/' + gamename, {
           dataType: 'text',
           success: function(data) {
             if (data !== 'true') {
-              window.location = '/new/' + gamename;
+              window.location = '{{root}}new/' + gamename;
             } else {
               $('#status').text('This game already exists.');
             }
@@ -40,11 +40,11 @@
           return;
         }
         $('#status').text('Trying to join game...');
-        $.ajax('/hasgame/' + gamename, {
+        $.ajax('{{root}}hasgame/' + gamename, {
           dataType: 'text',
           success: function(data) {
             if (data === 'true') {
-              window.location = '/game/' + gamename;
+              window.location = '{{root}}game/' + gamename;
             } else {
               $('#status').text('This game does not exist yet.');
             }
@@ -55,7 +55,7 @@
         });
       }
       function startSinglePlayer() {
-        window.location = '/singleplayer';
+        window.location = '{{root}}singleplayer';
       }
     </script>
   </body>

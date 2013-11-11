@@ -1,9 +1,10 @@
 var game = game || {};
-$(function() {
+game.start = function(mode) {
   var canvas = document.getElementById('canvas');
   var context = canvas.getContext('2d');
   var socket = game.socket = io.connect(
-    window.location.protocol + '//' + window.location.host
+    window.location.protocol + '//' + window.location.host,
+    { resource: game.config.root + 'socket.io' }
   );
 
   var img = {}, snd = {};
@@ -100,7 +101,14 @@ $(function() {
     a.health = data.health;
   });
 
-  socket.emit('start singleplayer');
+  if (mode === 'singleplayer') {
+    socket.emit('start singleplayer');
+  } else if (mode === 'newgame') {
+    socket.emit('new multiplayer game', 'game');
+  } else if (mode === 'joingame') {
+    socket.emit('join multiplayer game', 'game');
+    socket.emit('start multiplayer game');
+  }
   messageDef('cant start', function() {
     alert('cant start game!');
     // do something
@@ -164,4 +172,4 @@ $(function() {
     drawBackground();
     drawActors();
   };
-});
+};
