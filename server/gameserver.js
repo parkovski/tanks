@@ -4,10 +4,28 @@ var actorData = require('../client/actors');
 
 var setActorBehavior = require('./actorbehavior')(actorData);
 
-//var level = require('../levels/Then we will fight in the shade');
-//var level = require('../levels/PlainMap');
-//var level = require('../levels/FirstMap');
-var level = require('../levels/HappyFunTime');
+function getLevel(list, number) {
+  var name = list[number];
+  var level;
+  if (name) {
+    try {
+      level = require('../levels/' + name);
+    } catch (e) {
+    }
+  }
+  if (level) {
+    return level;
+  }
+  return {
+    background: 'map3',
+    music: 'elevatorMusic',
+    players: [
+      {x: 30, y: 30},
+      {x: 500, y: 350}
+    ],
+    pieces: []
+  };
+}
 
 // ---------------
 
@@ -21,16 +39,7 @@ function Game(server, name, socket, sockets) {
   this.invScale = 10;
   this.scale = 1 / this.invScale;
   this._nextPlayerId = 0;
-  /*this.setLevel({
-    background: 'map3',
-    music: 'elevatorMusic',
-    players: [
-      {x: 30, y:30},
-      {x: 600, y: 400},
-      {x: 200, y: 200}
-    ],
-    pieces: []
-  });*/
+  this.tankTypes = [];
 }
 
 Game.prototype.nextPlayerId = function() {
@@ -39,6 +48,10 @@ Game.prototype.nextPlayerId = function() {
 
 Game.prototype.addPlayer = function() {
   ++this.connectedPlayers;
+};
+
+Game.prototype.isPlaying = function() {
+  return typeof this.interval !== 'undefined';
 };
 
 Game.prototype.endGame = function(winner) {
@@ -243,6 +256,13 @@ var actor_applyTorque = function(torque) {
   this.body.ApplyTorque(torque*200);
 };
 
+Game.prototype.setTankType = function(id, type) {
+  if (!actorData[type] || !actorData[type].playable) {
+    return;
+  }
+  this.tankTypes[id] = type;
+};
+
 Game.prototype.setLevel = function(level) {
   this.world = new box2d.b2World(new box2d.b2Vec2(0, 0), true);
   this.createWalls();
@@ -251,16 +271,11 @@ Game.prototype.setLevel = function(level) {
   this.background = level.background;
   this.music = level.music;
   this.actors = [];
-  level.players[0].type = 'hoverTank';
-  level.players[1].type = 'standardTank';
-  delete level.players[2];
-  delete level.players[3];
-  //level.players[2].type = 'hoverTank';
-  //level.players[3].type = 'hoverTank';
   var self = this;
-  level.players.forEach(function(player) {
+  level.players.forEach(function(player, index) {
+    var type = self.tankTypes[index] || 'standardTank';
     self.createServerActor(
-      player.type, +player.x, +player.y, 0, 0
+      type, +player.x, +player.y, 0, 0
     );
     ++self.playerCount;
   });
@@ -600,9 +615,6 @@ function setupSocketForGame(socket, game) {
   socket.game = game;
   socket.playerId = game.nextPlayerId();
 
-  socket.emit('set background', game.background);
-  socket.emit('set music', game.music);
-  socket.emit('set actors', game.actorsForSyncing());
   socket.emit('set player id', socket.playerId);
 
   // Not for production
@@ -670,10 +682,16 @@ function setupSocketForGame(socket, game) {
   });
 }
 
+function sendGameSetup(game) {
+  game.sendNow('set background', game.background);
+  game.sendNow('set music', game.music);
+  game.sendNow('set actors', game.actorsForSyncing());
+}
+
 module.exports = {
-  use: function(config, io) {
+  use: function(config, io, levelList) {
     io.sockets.on('connection', function(socket) {
-      socket.on('start singleplayer', function() {
+      socket.on('start singleplayer', function(tank, level) {
         var game = server.newGame(socket, io.sockets);
         if (!game) {
           socket.emit('cant start', 'failed to create game');
@@ -681,13 +699,22 @@ module.exports = {
           return;
         }
 
-        game.setLevel(level);
         setupSocketForGame(socket, game);
+        game.setTankType(socket.playerId, tank);
+        game.setLevel(getLevel(levelList, level));
+        sendGameSetup(game);
         game.start();
         game.sendNow('start game');
       });
 
-      socket.on('new multiplayer game', function(name) {
+      socket.on('set tank', function(tank) {
+        if (socket.game.isPlaying()) {
+          return;
+        }
+        socket.game.setTankType(socket.playerId, tank);
+      });
+
+      socket.on('new multiplayer game', function(name, level) {
         if (server.hasGame(name)) {
           socket.emit('cant start', 'game already exists');
           socket.disconnect();
@@ -701,7 +728,7 @@ module.exports = {
           return;
         }
 
-        game.setLevel(level);
+        game.setLevel(getLevel(levelList, level));
         setupSocketForGame(socket, game);
         socket.join('g:' + name);
         game._socketRoom = 'g:' + name;
@@ -730,6 +757,7 @@ module.exports = {
       socket.on('start multiplayer game', function() {
         var game = socket.game;
         if (!game || typeof game.interval !== 'undefined') return;
+        sendGameSetup(game);
         game.start();
         game.sendNow('start game');
       });

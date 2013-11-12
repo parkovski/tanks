@@ -74,9 +74,24 @@ if (!config.port && process.env.PORT) {
 // - Default: 80
 var port = +config.port;
 
+var levels = [];
+var levelOptions = '';
+var levelIndex = 0;
+require('fs').readdirSync(__dirname + '/levels/').forEach(function(level) {
+  if (level.substring(level.length - 5) === '.json') {
+    var text = '<option value="' + levelIndex + '">';
+    text += level.substring(0, level.length - 5);
+    text += '</option>';
+    levelOptions += text + '\n';
+    levels.push(level);
+    ++levelIndex;
+  }
+});
+
 // mode may be an array
 function getPage(pageName, mode) {
   config.mode = mode;
+  config.levelOptions = levelOptions;
   var pageText = fs.readFileSync(__dirname + pageName) + '';
   // Replace {{text}} with config values
   pageText = pageText.replace(/\{\{([a-zA-Z0-9]+)\}\}/g, function(match, p) {
@@ -172,4 +187,4 @@ if (config.exitAfterGamesFinished) {
 }
 
 var io = socketio.listen(app);
-gameserver.use(config, io);
+gameserver.use(config, io, levels);

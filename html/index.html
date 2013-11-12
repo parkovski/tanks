@@ -5,13 +5,29 @@
   </head>
   <body>
     Tanks<br>
-    Game name:<input type="text" id="gamename"><br>
-    <button onclick="startNewGame()">Start named game</button><br>
-    <button onclick="joinGame()">Join named game</button><br>
+    Tank:
+      <select id="tankType">
+        <option value="standardTank" selected>Standard Tank</option>
+        <option value="hoverTank">Hover Tank</option>
+        <option value="heavyTank">Heavy Tank</option>
+      </select><br>
+    Level:
+      <select id="level">
+        {{levelOptions}}
+      </select><br><br>
+    Game name (multiplayer only):<input type="text" id="gamename"><br>
+    <button onclick="startNewGame()">Start multiplayer game</button><br>
+    <button onclick="joinGame()">Join multiplayer game</button><br><br>
     <button onclick="startSinglePlayer()">Start single player game</button><br>
     <div id="status"></div>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
     <script>
+      function tankAndLevel() {
+        return '/' + $('#tankType').val() + '/' + $('#level').val();
+      }
+      function tank() {
+        return '/' + $('#tankType').val();
+      }
       function startNewGame() {
         var gamename = document.getElementById('gamename').value;
         if (gamename.length === 0) {
@@ -23,7 +39,7 @@
           dataType: 'text',
           success: function(data) {
             if (data !== 'true') {
-              window.location = '{{root}}new/' + gamename;
+              window.location = '{{root}}new/' + gamename + tankAndLevel();
             } else {
               $('#status').text('This game already exists.');
             }
@@ -44,7 +60,7 @@
           dataType: 'text',
           success: function(data) {
             if (data === 'true') {
-              window.location = '{{root}}game/' + gamename;
+              window.location = '{{root}}game/' + gamename + tank();
             } else {
               $('#status').text('This game does not exist yet.');
             }
@@ -55,7 +71,7 @@
         });
       }
       function startSinglePlayer() {
-        window.location = '{{root}}singleplayer';
+        window.location = '{{root}}singleplayer' + tankAndLevel();
       }
     </script>
   </body>

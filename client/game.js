@@ -1,4 +1,5 @@
 var game = game || {};
+game.clientMode = 'tankPicker';
 game.start = function(mode) {
   var canvas = document.getElementById('canvas');
   var context = canvas.getContext('2d');
@@ -121,14 +122,23 @@ game.start = function(mode) {
     a.gfx = img[a.graphic];
   });
 
-  if (mode === 'singleplayer') {
-    socket.emit('start singleplayer');
-  } else if (mode === 'newgame') {
-    socket.emit('new multiplayer game', 'game');
-  } else if (mode === 'joingame') {
-    socket.emit('join multiplayer game', 'game');
-    socket.emit('start multiplayer game');
-  }
+  (function() {
+    var args = location.pathname.split('/');
+    if (mode === 'singleplayer') {
+      socket.emit('start singleplayer', args[2], args[3]);
+    } else if (mode === 'newgame') {
+      socket.emit('new multiplayer game', args[2], args[4] || 0);
+      if (args[3]) {
+        socket.emit('set tank', args[3]);
+      }
+    } else if (mode === 'joingame') {
+      socket.emit('join multiplayer game', args[2]);
+      if (args[3]) {
+        socket.emit('set tank', args[3]);
+      }
+      socket.emit('start multiplayer game');
+    }
+  })();
   messageDef('cant start', function(info) {
     alert('cant start game: ' + info);
     // do something
