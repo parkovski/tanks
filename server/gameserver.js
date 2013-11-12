@@ -41,12 +41,16 @@ Game.prototype.addPlayer = function() {
   ++this.connectedPlayers;
 };
 
-Game.prototype.endGame = function() {
+Game.prototype.endGame = function(winner) {
   this.connectedPlayers = 0;
   console.log('destroying game', this._name);
-  if (this.interval) {
+  if (typeof this.interval !== 'undefined') {
     clearInterval(this.interval);
   }
+  if (typeof winner === 'undefined') {
+    winner = -1;
+  }
+  this.sendNow('game over', winner);
   // try to free up some stuff for gc
   this.actors = null;
   this.world = null;
@@ -202,7 +206,7 @@ var _applyForce = function(body, force, swap) {
   if (!body) return;
   var angle = body.GetAngle();
   if (swap) {
-    angle -= Math.PI / 2;
+    angle += Math.PI / 2;
   }
   var fy = force * Math.sin(angle);
   var fx = force * Math.cos(angle);
@@ -286,8 +290,7 @@ Game.prototype.removeActor = function(actor) {
         }
         return true;
       });
-      this.sendNow('game over', winner);
-      this.endGame();
+      this.endGame(winner);
       return;
     }
   }
@@ -594,8 +597,6 @@ GameServer.prototype.removeGame = function(name) {
 var server = new GameServer();
 
 function setupSocketForGame(socket, game) {
-  game.setLevel(level);
-
   socket.game = game;
   socket.playerId = game.nextPlayerId();
 
@@ -680,6 +681,7 @@ module.exports = {
           return;
         }
 
+        game.setLevel(level);
         setupSocketForGame(socket, game);
         game.start();
         game.sendNow('start game');
@@ -699,6 +701,7 @@ module.exports = {
           return;
         }
 
+        game.setLevel(level);
         setupSocketForGame(socket, game);
         socket.join('g:' + name);
         game._socketRoom = 'g:' + name;
@@ -708,6 +711,11 @@ module.exports = {
         var game = server.getGame(name);
         if (!game) {
           socket.emit('cant start', 'game does not exist');
+          socket.disconnect();
+          return;
+        }
+        if (typeof game.interval !== 'undefined') {
+          socket.emit('cant start', 'game is already in progress');
           socket.disconnect();
           return;
         }
@@ -721,7 +729,7 @@ module.exports = {
 
       socket.on('start multiplayer game', function() {
         var game = socket.game;
-        if (!game) return;
+        if (!game || typeof game.interval !== 'undefined') return;
         game.start();
         game.sendNow('start game');
       });

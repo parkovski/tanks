@@ -129,8 +129,8 @@ game.start = function(mode) {
     socket.emit('join multiplayer game', 'game');
     socket.emit('start multiplayer game');
   }
-  messageDef('cant start', function() {
-    alert('cant start game!');
+  messageDef('cant start', function(info) {
+    alert('cant start game: ' + info);
     // do something
   });
 
@@ -182,8 +182,14 @@ game.start = function(mode) {
     music = data;
   });
 
+  messageDef('disconnect', function() {
+    if (typeof game.interval !== 'undefined') {
+      clearInterval(game.interval);
+    }
+  });
+
   messageDef('game over', function(winnerId) {
-    if (game.interval) {
+    if (typeof game.interval !== 'undefined') {
       clearInterval(game.interval);
     }
     if (socket) {
