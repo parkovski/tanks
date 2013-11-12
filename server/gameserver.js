@@ -449,7 +449,7 @@ Game.prototype.sync = function() {
 
 Game.prototype.act = function(actor) {
   var socket = this.socket;
-  if (actor.act) actor.act(this);
+  if (actor.act) actor.act();
   //actor.applyBrakeForces();
   if (actor.data.maxLifetime) {
     if (++actor.lifetime > actor.data.maxLifetime) {
