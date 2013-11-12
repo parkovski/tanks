@@ -17,7 +17,8 @@ var defaults = {
   port: 80,
   root: '/',
   exitAfterGamesFinished: false,
-  maxGames: 2
+  maxGames: 2,
+  defaultLevel: 'SPARTA!'
 };
 
 // Allow command line config in the form -v[option]=[value].
@@ -79,7 +80,11 @@ var levelOptions = '';
 var levelIndex = 0;
 require('fs').readdirSync(__dirname + '/levels/').forEach(function(level) {
   if (level.substring(level.length - 5) === '.json') {
-    var text = '<option value="' + levelIndex + '">';
+    var text = '<option value="' + levelIndex + '"';
+    if (level === config.defaultLevel + '.json') {
+      text += ' selected';
+    }
+    text += '>';
     text += level.substring(0, level.length - 5);
     text += '</option>';
     levelOptions += text + '\n';
