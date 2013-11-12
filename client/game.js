@@ -18,6 +18,20 @@ game.start = function(mode) {
   var actors = game.actors = [];
   var backgroundImg = 'map3';
   var music = 'elevatorMusic';
+  $('#toggleMusic').change(function() {
+    var elem = document.getElementById(music);
+    if ($(this).is(':checked')) {
+      elem.loop = true;
+      elem.play();
+    } else {
+      elem.pause();
+    }
+  });
+
+  var playSounds = true;
+  $('#toggleSounds').change(function() {
+    playSounds = $(this).is(':checked');
+  });
 
   game.playerId = 0;
 
@@ -33,7 +47,7 @@ game.start = function(mode) {
       var x = a.x, y = a.y, r = a.r;
       var gfx = a.gfx;
       context.translate(x, y);
-      if (a.data.baseHealth) {
+      if (a.data.playable) {
         drawHealth(a);
       }
       context.rotate(r);
@@ -101,6 +115,12 @@ game.start = function(mode) {
     a.health = data.health;
   });
 
+  messageDef('set graphic', function(data) {
+    var a = actors[data.index];
+    a.graphic = data.graphic;
+    a.gfx = img[a.graphic];
+  });
+
   if (mode === 'singleplayer') {
     socket.emit('start singleplayer');
   } else if (mode === 'newgame') {
@@ -123,7 +143,7 @@ game.start = function(mode) {
     if (actor.data.gunGraphic) {
       actor.gunGraphic = actor.data.gunGraphic;
     }
-    if (actor.data.creationSound) {
+    if (actor.data.creationSound && playSounds) {
       var elem = document.getElementById(actor.data.creationSound);
       elem.currentTime = 0;
       elem.play();
@@ -162,9 +182,28 @@ game.start = function(mode) {
     music = data;
   });
 
+  messageDef('game over', function(winnerId) {
+    if (game.interval) {
+      clearInterval(game.interval);
+    }
+    if (socket) {
+      socket.disconnect();
+      socket = game.socket = null;
+    }
+    if (winnerId === game.playerId) {
+      context.drawImage(img['youWin'], 0, 0);
+    } else {
+      context.drawImage(img['youLose'], 0, 0);
+    }
+  });
+
   messageDef('start game', function() {
-    //document.getElementById(music).play();
-    setInterval(gameLoop, 25);
+    if ($('#toggleMusic').is(':checked')) {
+      var elem = document.getElementById(music);
+      elem.loop = true;
+      elem.play();
+    }
+    game.interval = setInterval(gameLoop, 25);
   });
 
   var gameLoop = function() {

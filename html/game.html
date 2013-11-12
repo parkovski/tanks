@@ -10,6 +10,15 @@
       div.right {
         float: right;
       }
+      div.boxed {
+        border: 1px solid black;
+        padding: 10px;
+      }
+      div.underline {
+        border-bottom: 1px solid black;
+        padding-bottom: 5px;
+        margin-bottom: 5px;
+      }
       div.row {
         padding: 40px 0;
         margin: 15px 0 0 0;
@@ -79,9 +88,8 @@
       <!-- Obstacles -->
       <img id="indestructible" src="{{root}}media/Indestructible.png">
       <img id="wall" src="{{root}}media/wall2.png">
-      <img id="wallDamaged1" src="{{root}}media/wall.png">
-      <img id="wallDamaged2" src="{{root}}media/wallDamaged.png">
-      <img id="wallDamaged3" src="{{root}}media/wallDamaged2.png">
+      <img id="wallDamaged1" src="{{root}}media/wallDamaged.png">
+      <img id="wallDamaged2" src="{{root}}media/wallDamaged2.png">
       <img id="treeStump" src="{{root}}media/TreeStump.png">
       <img id="treeLeaves" src="{{root}}media/treeLeaves.png">
       <img id="healingBeacon" src="{{root}}media/HealingBeacon.png">
@@ -111,10 +119,15 @@
       <audio id="sndExplosion" src="{{root}}media/explosion.mp3"></audio>
       <audio id="sndPlasmaBurst" src="{{root}}media/plasmaburst.mp3"></audio>
       <audio id="sndMineExplode" src="{{root}}media/MineExplode.mp3"></audio>
-      <audio id="sndPlasmaShot" src="{{root}}media/PlasmaShot.mp3"></audio>
+      <audio id="sndPlasmaShot" src="{{root}}media/PlasmaShot.mp4'"></audio>
       <audio id="sndRocketLaunch" src="{{root}}media/rocketlaunch.mp3"></audio>
       <audio id="sndShotgun" src="{{root}}media/Shotgun.mp3"></audio>
       <audio id="sndSnare" src="{{root}}media/Snare.mp3"></audio>
+    </div>
+    <div class="right boxed">
+      <div class="underline">Options:</div>
+      <div><label><input type="checkbox" checked id="toggleMusic"/> Music</label></div>
+      <div><label><input type="checkbox" checked id="toggleSounds"/> Sounds</label></div>
     </div>
     <canvas width="800" height="600" id="canvas"></canvas>
     <div id="controls">

@@ -8,18 +8,14 @@ var actorData = {
     turnBehavior: 'turn',
     gunRotationBehavior: 'gunOnly',
     baseHealth: 16000,
-    baseSpeed: 3,
     force: 600,
-    reverseFactor: 0.85,
     mine: {
       type: 'explosionMine',
-      coolDown: 300,
-      damage: 850,
+      coolDown: 300
     },
     gun: {
       type: 'missile',
-      coolDown: 35,
-      damage: 500
+      coolDown: 35
     },
     size: {"width":32,"height":32}
   },
@@ -32,20 +28,14 @@ var actorData = {
     turnBehavior: 'turn',
     gunRotationBehavior: 'gunOnly',
     baseHealth: 18000,
-    baseSpeed: 2.2,
     force: 800,
-    reverseFactor: 0.70,
     mine: {
       type: 'snareMine',
-      coolDown: 500,
-      damage: 3,
-      turns: 125
-      // Traps a tank and does 3 damage each turn for 125 turns (timer ticks).
+      coolDown: 500
     },
     gun: {
       type: 'plasma',
-      coolDown: 85,
-      damage: 300
+      coolDown: 85
     },
     size: {"width":44,"height":36}
   },
@@ -57,20 +47,16 @@ var actorData = {
     obstacle: true,
     turnBehavior: 'strafe',
     gunRotationBehavior: 'both',
+    syncGunRotation: true,
     baseHealth: 14000,
-    baseSpeed: 4.5,
     force: 500,
-    reverseFactor: 1,
     mine: {
       type: 'spiderMine',
-      coolDown: 50,
-      damage: 50,
-      turns: 200 // Spider mines die automatically after this many turns.
+      coolDown: 50
     },
     gun: {
       type: 'shotgun',
       coolDown: 15,
-      damage: 200,
       rounds: 3
     },
     size: {"width":30,"height":30}
@@ -102,7 +88,6 @@ var actorData = {
     obstacle: true,
     damage: 2000,
     force: 600,
-    baseSpeed: 8,
     maxLifetime: 200,
     creationSound: 'sndRocketLaunch',
     size: {"width":36,"height":18}
@@ -113,7 +98,6 @@ var actorData = {
     obstacle: false,
     damage: 800,
     force: 50,
-    baseSpeed: 4.5,
     maxLifetime: 200,
     creationSound: 'sndPlasmaShot',
     size: {"width":16,"height":16}
@@ -122,16 +106,14 @@ var actorData = {
     graphic: 'plasmaSmall',
     collidable: true,
     obstacle: true,
-    baseSpeed: 8,
     maxLifetime: 200,
   },
   shotgun: {
     graphic: 'shotgunBullet',
     collidable: true,
-    obstacle: true,
+    obstacle: false,
     damage: 400,
     force: 500,
-    baseSpeed: 10,
     maxLifetime: 200,
     creationSound: 'sndShotgun',
     size: {"width":50,"height":12}
@@ -145,8 +127,10 @@ var actorData = {
   },
   wall: {
     graphic: 'wall',
+    tiles: ['wall', 'wallDamaged1', 'wallDamaged2'],
     collidable: true,
     obstacle: true,
+    baseHealth: 5000,
     size: {"width":40,"height":40}
   },
   tree: {
@@ -197,27 +181,26 @@ var actorData = {
     graphic: 'fireBall',
     collidable: false,
     obstacle: false,
-    baseSpeed: 5,
     maxLifetime: 8
   },
   mineExplosion: {
     graphic: 'mineExplosion',
     collidable: false,
     obstacle: false,
-    maxLifetime: 5
+    maxLifetime: 5,
+    creationSound: 'sndMineExplode'
   },
 
   spider: {
     graphic: 'spider1',
     collidable: true,
     obstacle: false,
-    baseSpeed: 5,
     force: 50,
     damage: 1500,
-    maxLifetime: 150
+    maxLifetime: 200
   }
 };
 
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module !== 'undefined') {
   module.exports = actorData;
 }

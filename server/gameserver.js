@@ -4,9 +4,10 @@ var actorData = require('../client/actors');
 
 var setActorBehavior = require('./actorbehavior')(actorData);
 
-var level = require('../levels/Then we will fight in the shade');
+//var level = require('../levels/Then we will fight in the shade');
 //var level = require('../levels/PlainMap');
 //var level = require('../levels/FirstMap');
+var level = require('../levels/HappyFunTime');
 
 // ---------------
 
@@ -15,7 +16,8 @@ function Game(server, name, socket, sockets) {
   this._name = name;
   this.socket = socket;
   this.sockets = sockets;
-  this.playerCount = 1;
+  this.connectedPlayers = 1;
+  this.playerCount = 0;
   this.invScale = 10;
   this.scale = 1 / this.invScale;
   this._nextPlayerId = 0;
@@ -36,22 +38,27 @@ Game.prototype.nextPlayerId = function() {
 };
 
 Game.prototype.addPlayer = function() {
-  ++this.playerCount;
+  ++this.connectedPlayers;
+};
+
+Game.prototype.endGame = function() {
+  this.connectedPlayers = 0;
+  console.log('destroying game', this._name);
+  if (this.interval) {
+    clearInterval(this.interval);
+  }
+  // try to free up some stuff for gc
+  this.actors = null;
+  this.world = null;
+  this.socket = null;
+  this.sockets = null;
+  this._server.removeGame(this._name);
 };
 
 Game.prototype.removePlayer = function() {
-  --this.playerCount;
-  if (this.playerCount === 0) {
-    console.log('destroying game', this._name);
-    if (this.interval) {
-      clearInterval(this.interval);
-    }
-    // try to free up some stuff for gc
-    this.actors = null;
-    this.world = null;
-    this.socket = null;
-    this.sockets = null;
-    this._server.removeGame(this._name);
+  --this.connectedPlayers;
+  if (this.connectedPlayers === 0) {
+    this.endGame();
   }
 };
 
@@ -94,10 +101,10 @@ Game.prototype.setCollisionHandler = function() {
     }
     
     if (actorA.collide) {
-      actorA.collide(actorB, self);
+      actorA.collide(actorB);
     }
     if (actorB.collide) {
-      actorB.collide(actorA, self);
+      actorB.collide(actorA);
     }
   };
 
@@ -121,7 +128,7 @@ Game.prototype.addBody = function(actor) {
   bodyDef.userData = actor;
   bodyDef.linearDamping = 3;
   bodyDef.angularDamping = 3;
-  if (actor.data.baseSpeed) {
+  if (actor.data.force) {
     bodyDef.fixedRotation = false;
     bodyDef.type = box2d.b2Body.b2_dynamicBody;
   } else {
@@ -194,14 +201,12 @@ var actor_applyBrakeForces = function() {
 var _applyForce = function(body, force, swap) {
   if (!body) return;
   var angle = body.GetAngle();
+  if (swap) {
+    angle += Math.PI / 2;
+  }
   var fy = force * Math.sin(angle);
   var fx = force * Math.cos(angle);
-  var vec;
-  if (swap) {
-    vec = new box2d.b2Vec2(fy, fx);
-  } else {
-    vec = new box2d.b2Vec2(fx, fy);
-  }
+  var vec = new box2d.b2Vec2(fx, fy);
   body.ApplyForce(vec, body.GetWorldCenter());
 };
 
@@ -211,6 +216,21 @@ var actor_applyForce = function(force) {
 
 var actor_applySidewaysForce = function(force) {
   _applyForce(this.body, force * this.data.force, true);
+};
+
+var actor_applyForceTowards = function(target) {
+  var fx = target.x - this.x;
+  var fy = target.y - this.y;
+
+  var scale = Math.sqrt(fx * fx + fy * fy) / this.data.force;
+  if (scale > 1) {
+    fx /= scale;
+    fy /= scale;
+  } else {
+    fx *= scale;
+    fy *= scale;
+  }
+  this.body.ApplyForce(new box2d.b2Vec2(fx, fy), this.body.GetWorldCenter());
 };
 
 var actor_applyTorque = function(torque) {
@@ -227,7 +247,7 @@ Game.prototype.setLevel = function(level) {
   this.background = level.background;
   this.music = level.music;
   this.actors = [];
-  level.players[0].type = 'standardTank';
+  level.players[0].type = 'hoverTank';
   level.players[1].type = 'standardTank';
   delete level.players[2];
   delete level.players[3];
@@ -238,6 +258,7 @@ Game.prototype.setLevel = function(level) {
     self.createServerActor(
       player.type, +player.x, +player.y, 0, 0
     );
+    ++self.playerCount;
   });
   level.pieces.forEach(function(actor) {
     self.createServerActor(actor.type, +actor.x, +actor.y, +actor.r);
@@ -245,14 +266,33 @@ Game.prototype.setLevel = function(level) {
 };
 
 Game.prototype.removeActor = function(actor) {
-  if (typeof actor !== 'number') {
-    actor = actor.id;
+  if (typeof actor === 'number') {
+    actor = this.actors[actor];
   }
-  if (this.actors[actor] && this.actors[actor].body) {
-    this.world.DestroyBody(this.actors[actor].body);
+  if (!actor) {
+    return;
   }
-  delete this.actors[actor];
-  this.send('remove actor', actor);
+  if (actor.body) {
+    this.world.DestroyBody(actor.body);
+  }
+  if (actor.data.playable) {
+    --this.playerCount;
+    if (this.playerCount <= 1) {
+      var winner = -1;
+      this.actors.every(function(a) {
+        if (a.data.playable && a !== actor) {
+          winner = a.id;
+          return false;
+        }
+        return true;
+      });
+      this.sendNow('game over', winner);
+      this.endGame();
+      return;
+    }
+  }
+  delete this.actors[actor.id];
+  this.send('remove actor', actor.id);
 };
 
 Game.prototype.removeActorLater = function(actor) {
@@ -260,23 +300,14 @@ Game.prototype.removeActorLater = function(actor) {
 };
 
 Game.prototype.createServerActor = function(type, x, y, r, gunR, owner) {
-  var actor = {
-    id: this.actors.length,
+  return this.createServerActorEx({
     type: type,
     x: x,
     y: y,
-    applyForce: actor_applyForce,
-    applySidewaysForce: actor_applySidewaysForce,
-    applyTorque: actor_applyTorque,
-    applyBrakeForces: actor_applyBrakeForces
-  };
-  if (r !== void 0) actor.r = r;
-  if (gunR !== void 0) actor.gunR = gunR;
-  if (owner) actor.owner = owner;
-  this.actors.push(actor);
-  setActorBehavior(actor, this);
-  this.addBody(actor);
-  return actor;
+    r: r,
+    gunR: gunR,
+    owner: owner
+  });
 };
 
 Game.prototype.createServerActorEx = function(args) {
@@ -291,6 +322,7 @@ Game.prototype.createServerActorEx = function(args) {
     showTo: args.showTo,
     target: args.target,
     applyForce: actor_applyForce,
+    applyForceTowards: actor_applyForceTowards,
     applySidewaysForce: actor_applySidewaysForce,
     applyTorque: actor_applyTorque,
     applyBrakeForces: actor_applyBrakeForces
@@ -343,11 +375,12 @@ Game.prototype.start = function() {
   var self = this;
   this.interval = setInterval(function() {
     self.startTurn();
-    self.actors.forEach(function(actor) {
-      self.act(actor);
-    });
-    self.sync();
-    self.endTurn();
+    if (self.actors.every(function(actor) {
+        return self.act(actor);
+      })) {
+      self.sync();
+      self.endTurn();
+    }
   }, 25);
 };
 
@@ -388,17 +421,26 @@ Game.prototype.sync = function() {
   var lists = this.stepAndGetUpdateList();
   var self = this;
   lists.move.forEach(function(id) {
+    var actor = self.actors[id];
     self.send('moveto', {
       index: id,
-      x: self.actors[id].x,
-      y: self.actors[id].y
+      x: actor.x,
+      y: actor.y
     });
   });
   lists.rotate.forEach(function(id) {
+    var actor = self.actors[id];
     self.send('rotateto', {
       index: id,
-      r: self.actors[id].r
+      r: actor.r
     });
+    if (actor.data.syncGunRotation) {
+      actor.gunR = actor.r;
+      self.send('rotategunto', {
+        index: id,
+        r: actor.gunR
+      });
+    }
   });
 };
 
@@ -411,8 +453,23 @@ Game.prototype.act = function(actor) {
       this.removeActor(actor);
     }
   }
+  if (actor.update.health) {
+    actor.health += actor.update.health;
+    if (actor.health <= 0) {
+      this.removeActor(actor);
+    } else {
+      this.send('sethealth', {
+        index: actor.id,
+        health: actor.health
+      });
+    }
+  }
+  // if the game ended, this.actors is null.
+  if (!this.actors) {
+    return false;
+  }
   if (!this.actors[actor.id]) {
-    return;
+    return true;
   }
   if (actor.update.gunRotation) {
     this.send('rotategunto', {
@@ -421,9 +478,33 @@ Game.prototype.act = function(actor) {
     });
   }
   if (actor.update.shoot) {
-    var x = actor.x + 10 * Math.cos(actor.gunR);
-    var y = actor.y + 10 * Math.sin(actor.gunR);
-    this.createActor(actor.data.gun.type, x, y, actor.gunR, actor);
+    if (actor.data.gun.rounds) {
+      (function(spread, actor, self) {
+        var times = actor.data.gun.rounds;
+        var deltaAngle = spread / (times + 1);
+        var angle = actor.gunR - spread / 2 + deltaAngle;
+        var xoffset = actor.data.size.width / 2;
+        var yoffset = actor.data.size.height / 2;
+        for (var i = 0; i < times; ++i) {
+          self.createActor(
+            actor.data.gun.type, 
+            actor.x + xoffset * Math.cos(angle),
+            actor.y + yoffset * Math.sin(angle),
+            angle,
+            actor
+          );
+          angle += deltaAngle;
+        }
+      })(Math.PI / 4, actor, this);
+    } else {
+      this.createActor(
+        actor.data.gun.type, 
+        actor.x + actor.data.size.width / 2 * Math.cos(actor.gunR),
+        actor.y + actor.data.size.height / 2 * Math.sin(actor.gunR),
+        actor.gunR,
+        actor
+      );
+    }
   }
   if (actor.update.layMine) {
     this.createActorEx({
@@ -434,14 +515,9 @@ Game.prototype.act = function(actor) {
       showTo: actor.id
     });
   }
-  if (actor.update.health) {
-    actor.health += actor.update.health;
-    this.send('sethealth', {
-      index: actor.id,
-      health: actor.health
-    });
-  }
   actor.update.reset();
+
+  return true;
 };
 
 function GameServer() {
@@ -449,10 +525,19 @@ function GameServer() {
   this._singlePlayerId = 0;
   this._gameCount = 0;
   this._exitAfterGamesFinished = false;
+  this._maxGames = 0;
 }
 
 GameServer.prototype.setExitAfterGamesFinished = function(exit) {
   this._exitAfterGamesFinished = exit;
+};
+
+GameServer.prototype.setMaxGames = function(maxGames) {
+  this._maxGames = maxGames;
+};
+
+GameServer.prototype.canStartGame = function() {
+  return this._gameCount < this._maxGames;
 };
 
 GameServer.prototype.hasGame = function(name) {
@@ -470,6 +555,9 @@ GameServer.prototype.getGame = function(name, password) {
  * a single player game with a unique id is created.
  */
 GameServer.prototype.newGame = function(name, sockets) {
+  if (!this.canStartGame()) {
+    return null;
+  }
   var socket = null;
   if (typeof name !== 'string') {
     socket = name;
@@ -628,7 +716,7 @@ module.exports = {
         setupSocketForGame(socket, game);
         socket.join('g:' + name);
         game._socketRoom = 'g:' + name;
-        game.sendNow('update player count', game.playerCount);
+        game.sendNow('update connected players', game.connectedPlayers);
       });
 
       socket.on('start multiplayer game', function() {

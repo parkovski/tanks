@@ -29,12 +29,12 @@ var actions = {
         this.mineCdTimer = this.data.mine.coolDown;
       }
     },
-    missile: function(game) {
+    missile: function() {
       if (this.lifetime % 5 === 0) {
         var dx = Math.random() * 6 - 3;
         var dy = Math.random() * 6 - 3;
         var dr = Math.random() * Math.PI / 4 - Math.PI / 8;
-        game.createActor(
+        this.game.createActor(
           'fireBall',
           this.x + dx,
           this.y + dy,
@@ -56,7 +56,20 @@ var actions = {
       actions.move.call(this, 1);
     },
     spider: function() {
-      actions.move.call(this, 1);
+      this.applyForceTowards(this.target);
+    },
+    wall: function() {
+      if (!this.healthTracker) {
+        this.healthTracker = {
+          chunk: this.health / this.data.tiles.length,
+        };
+        this.healthTracker.threshold = this.health - this.healthTracker.chunk;
+        return;
+      }
+      if (this.health < this.healthTracker.threshold) {
+        this.healthTracker.threshold -= this.healthTracker.chunk;
+        this.nextTile();
+      }
     }
   },
   turnBehavior: {
@@ -70,16 +83,14 @@ var actions = {
   gunRotationBehavior: {
     gunOnly: function(direction) {
       if (direction < 0) {
-        this.gunR -= this.rotation;
+        this.gunR -= Math.PI / 40;
       } else {
-        this.gunR += this.rotation;
+        this.gunR += Math.PI / 40;
       }
       this.update.gunRotation = true;
     },
     both: function(direction) {
       this.applyTorque(direction);
-      this.gunR = this.body.GetAngle();
-      this.update.gunRotation = true;
     }
   },
   move: function(direction) {
@@ -115,22 +126,22 @@ var actions = {
         this.destroy();
       }
     },
-    explosionMine: function(other, game) {
+    explosionMine: function(other) {
       if (other === this.owner) {
         return;
       }
       if (other.health && other.data.playable) {
         other.update.health -= this.data.damage;
-        game.createActor('mineExplosion', this.x, this.y);
+        this.game.createActor('mineExplosion', this.x, this.y);
         this.destroy();
       }
     },
-    spiderMine: function(other, game) {
+    spiderMine: function(other) {
       if (other === this.owner || !other.data.playable) {
         return;
       }
-      game.createActor('mineExplosion', this.x, this.y);
-      game.createActorEx({
+      this.game.createActor('mineExplosion', this.x, this.y);
+      this.game.createActorEx({
         type: 'spider',
         x: this.x,
         y: this.y,
@@ -141,13 +152,13 @@ var actions = {
       });
       this.destroy();
     },
-    spider: function(other, game) {
+    spider: function(other) {
       if (other === this.owner) {
         return;
       }
       if (other.health && other.data.playable) {
         other.update.health -= this.data.damage;
-        game.createActor('mineExplosion', this.x, this.y);
+        this.game.createActor('mineExplosion', this.x, this.y);
         this.destroy();
       }
     }
@@ -157,18 +168,28 @@ var actions = {
 module.exports = function(actors) {
   return function setActorBehavior(actor, game) {
     actor.data = actors[actor.type];
+    actor.game = game;
     actor.destroy = function() {
       game.removeActorLater(this);
-    }
-    if (actor.data.baseSpeed) {
-      actor.speed = actor.data.baseSpeed;
-      actor.rotation = Math.PI / 40;
     }
     if (actor.data.baseHealth) {
       actor.health = actor.data.baseHealth;
     }
     if (actor.data.maxLifetime) {
       actor.lifetime = 0;
+    }
+    if (actor.data.tiles) {
+      actor.tileIndex = 0;
+      actor.nextTile = function() {
+        ++this.tileIndex;
+        if (this.tileIndex === this.data.tiles.length) {
+          this.tileIndex = 0;
+        }
+        this.game.send('set graphic', {
+          index: this.id,
+          graphic: this.data.tiles[this.tileIndex]
+        });
+      }
     }
     if (actor.data.playable) {
       actor.playable = true;
@@ -200,7 +221,9 @@ module.exports = function(actors) {
       actor.act = actions.act[actor.type];
       actor.collide = actions.collide[actor.type];
       actor.update = {
+        health: 0,
         reset: function() {
+          this.health = 0;
         }
       };
     }
