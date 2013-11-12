@@ -202,7 +202,7 @@ var _applyForce = function(body, force, swap) {
   if (!body) return;
   var angle = body.GetAngle();
   if (swap) {
-    angle += Math.PI / 2;
+    angle -= Math.PI / 2;
   }
   var fy = force * Math.sin(angle);
   var fx = force * Math.cos(angle);
