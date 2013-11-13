@@ -160,7 +160,8 @@ var actorData = {
   healingBeacon: {
     graphic: 'healingBeacon',
     collidable: true,
-    obstacle: true
+    obstacle: true,
+    baseHealth: 5000
   },
   healingPatch: {
     graphic: 'healingPatch',
