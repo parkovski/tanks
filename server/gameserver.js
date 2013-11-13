@@ -464,10 +464,16 @@ Game.prototype.sync = function() {
 
 Game.prototype.act = function(actor) {
   var socket = this.socket;
-  if (actor.act) actor.act();
+  if (actor.freezeTime) {
+    --actor.freezeTime;
+  } else {
+    if (actor.act) actor.act();
+  }
   //actor.applyBrakeForces();
-  if (actor.data.maxLifetime) {
-    if (++actor.lifetime > actor.data.maxLifetime) {
+  if (typeof actor.lifetime !== 'undefined') {
+    ++actor.lifetime;
+    if (actor.data.maxLifetime === -1) {
+    } else if (actor.lifetime > actor.data.maxLifetime) {
       this.removeActor(actor);
     }
   }
@@ -488,6 +494,13 @@ Game.prototype.act = function(actor) {
   }
   if (!this.actors[actor.id]) {
     return true;
+  }
+  if (actor.update.position) {
+    this.send('moveto', {
+      index: actor.id,
+      x: actor.x,
+      y: actor.y
+    });
   }
   if (actor.update.gunRotation) {
     this.send('rotategunto', {
@@ -562,7 +575,7 @@ GameServer.prototype.hasGame = function(name) {
   return !!this._games['g:' + name];
 };
 
-GameServer.prototype.getGame = function(name, password) {
+GameServer.prototype.getGame = function(name) {
   var game = this._games['g:' + name];
   return game;
 };

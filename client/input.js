@@ -1,4 +1,32 @@
 var game = game || {};
+game.getTouchEventNames = function() {
+  if (navigator.pointerEnabled) {
+    return ['pointerdown', 'pointerup'];
+  } else if (navigator.msPointerEnabled) {
+    return ['MSPointerDown', 'MSPointerUp'];
+  } else if ('ontouchstart' in window) {
+    return ['touchstart', 'touchend'];
+  } else {
+    return null;
+  }
+};
+
+game.unbindInputEvents = function() {
+  var jqDoc = $(document);
+  var jqCanvas = $('#canvas');
+
+  jqDoc.unbind('keydown');
+  jqDoc.unbind('keyup');
+  jqDoc.unbind('mousemove');
+  jqCanvas.unbind('contextmenu');
+  jqCanvas.unbind('mousedown');
+
+  var names = game.getTouchEventNames();
+  if (!names) return;
+  jqCanvas.unbind(names[0]);
+  jqCanvas.unbind(names[1]);
+};
+
 game.initInput = function() {
   var keymap = {
     // movement
@@ -158,16 +186,8 @@ game.initInput = function() {
 
   // Touch events
   (function() {
-    var names;
-    if (navigator.pointerEnabled) {
-      names = ['pointerdown', 'pointerup'];
-    } else if (navigator.msPointerEnabled) {
-      names = ['MSPointerDown', 'MSPointerUp'];
-    } else if ('ontouchstart' in window) {
-      names = ['touchstart', 'touchend'];
-    } else {
-      return;
-    }
+    var names = game.getTouchEventNames();
+    if (!names) return;
 
     $('#controls').show();
 

@@ -46,6 +46,14 @@ var actions = {
     plasma: function() {
       actions.move.call(this, 1);
     },
+    attachedPlasma: function() {
+      if (this.target.x !== this.x || this.target.y !== this.y) {
+        this.x = this.target.x;
+        this.y = this.target.y;
+        this.update.position = true;
+      }
+      this.target.update.health -= this.data.damage;
+    },
     plasmaSmall: function() {
       actions.move.call(this, 1);
     },
@@ -57,6 +65,17 @@ var actions = {
     },
     spider: function() {
       this.applyForceTowards(this.target);
+    },
+    snareMine: function() {
+      if (this.target) {
+        if (this.lifetime % 3 === 0) {
+          this.nextTile();
+        }
+        this.target.update.health -= this.data.damage;
+        if (this.target.freezeTime === 0 || this.target.health < 0) {
+          this.destroy();
+        }
+      }
     },
     wall: function() {
       if (!this.healthTracker) {
@@ -113,7 +132,14 @@ var actions = {
         return;
       }
       if (other.health) {
-        other.update.health -= this.data.damage;
+        this.game.createActorEx({
+          type: 'attachedPlasma',
+          x: this.x,
+          y: this.y,
+          target: other
+        });
+      }
+      if (other.data.obstacle) {
         this.destroy();
       }
     },
@@ -135,6 +161,13 @@ var actions = {
         this.game.createActor('mineExplosion', this.x, this.y);
         this.destroy();
       }
+    },
+    snareMine: function(other) {
+      if (other === this.owner || !other.data.playable || this.target) {
+        return;
+      }
+      this.target = other;
+      other.freezeTime = this.data.freezeTime;
     },
     spiderMine: function(other) {
       if (other === this.owner || !other.data.playable) {
@@ -205,15 +238,18 @@ module.exports = function(actors) {
       actor.moveDirection = 0;
       actor.gunCdTimer = 0;
       actor.mineCdTimer = 0;
+      actor.freezeTime = 0;
       actor.update = {
         gunRotation: false,
         shoot: false,
         layMine: false,
+        position: false,
         health: 0,
         reset: function() {
           this.gunRotation = false;
           this.shoot = false;
           this.layMine = false;
+          this.position = false;
           this.health = 0;
         }
       };

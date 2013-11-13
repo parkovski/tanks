@@ -71,8 +71,12 @@ var actorData = {
   },
   snareMine: {
     graphic: 'smallMine',
+    tiles: ['snare1', 'snare2', 'snare3', 'snare4', 'snare5'],
+    maxLifetime: -1,
     collidable: true,
     obstacle: false,
+    freezeTime: 100,
+    damage: 35,
     size: {"width":35,"height":35}
   },
   spiderMine: {
@@ -86,7 +90,7 @@ var actorData = {
     graphic: 'missile',
     collidable: true,
     obstacle: true,
-    damage: 2000,
+    damage: 1500,
     force: 600,
     maxLifetime: 200,
     creationSound: 'sndRocketLaunch',
@@ -96,10 +100,17 @@ var actorData = {
     graphic: 'plasma',
     collidable: true,
     obstacle: false,
-    damage: 800,
     force: 50,
     maxLifetime: 200,
     creationSound: 'sndPlasmaShot',
+    size: {"width":16,"height":16}
+  },
+  attachedPlasma: {
+    graphic: 'plasma',
+    collidable: false,
+    obstacle: false,
+    damage: 20,
+    maxLifetime: 100,
     size: {"width":16,"height":16}
   },
   plasmaSmall: {
@@ -107,13 +118,14 @@ var actorData = {
     collidable: true,
     obstacle: true,
     maxLifetime: 200,
+    damage: 300
   },
   shotgun: {
     graphic: 'shotgunBullet',
     collidable: true,
     obstacle: false,
-    damage: 400,
-    force: 500,
+    damage: 800,
+    force: 400,
     maxLifetime: 200,
     creationSound: 'sndShotgun',
     size: {"width":50,"height":12}

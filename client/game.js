@@ -179,6 +179,10 @@ game.start = function(mode) {
 
   messageDef('remove actor', function(data) {
     delete actors[data];
+    if (data === game.playerId) {
+      game.unbindInputEvents();
+      game.mousestate.checkRotation = function() {};
+    }
   });
 
   messageDef('set player id', function(data) {

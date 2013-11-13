@@ -72,6 +72,7 @@
         $.ajax('{{root}}hasgame/' + gamename, {
           dataType: 'text',
           success: function(data) {
+            console.log('got ajax: ', data);
             if (data === 'true') {
               window.location = '{{root}}game/' + gamename + tank();
             } else {

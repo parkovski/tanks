@@ -150,9 +150,12 @@ var pages = {
   },
   'hasgame': function(req, res) {
     // ajax call
+    console.log('asking about game', req.args[0]);
     if (gameserver.server.hasGame(req.args[0])) {
+      console.log('game exists');
       res.write('true');
     } else {
+      console.log('game does not exist');
       res.write('false');
     }
   },
