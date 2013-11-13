@@ -134,9 +134,14 @@ game.start = function(mode) {
       socket.emit('new multiplayer game', args[1], args[3] || 0, args[2]);
     } else if (mode === 'joingame') {
       socket.emit('join multiplayer game', args[1], args[2]);
-      socket.emit('start multiplayer game');
     }
   })();
+  $('#startGame').click(function() {
+    socket.emit('start multiplayer game');
+  });
+  messageDef('update connected players', function(players) {
+    $('#connectedPlayers').text(players);
+  });
   messageDef('cant start', function(info) {
     alert('cant start game: ' + info);
     // do something
