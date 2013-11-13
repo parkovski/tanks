@@ -150,6 +150,9 @@ var pages = {
   },
   'hasgame': function(req, res) {
     // ajax call
+    if (~req.args[0].indexOf('?')) {
+      req.args[0] = req.args[0].substring(0, req.args[0].indexOf('?'));
+    }
     console.log('asking about game', req.args[0]);
     if (gameserver.server.hasGame(req.args[0])) {
       console.log('game exists');

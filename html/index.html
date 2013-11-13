@@ -71,6 +71,7 @@
         $('#status').text('Trying to join game...');
         $.ajax('{{root}}hasgame/' + gamename, {
           dataType: 'text',
+          cache: false,
           success: function(data) {
             console.log('got ajax: ', data);
             if (data === 'true') {
