@@ -720,14 +720,7 @@ module.exports = {
         game.sendNow('start game');
       });
 
-      socket.on('set tank', function(tank) {
-        if (socket.game.isPlaying()) {
-          return;
-        }
-        socket.game.setTankType(socket.playerId, tank);
-      });
-
-      socket.on('new multiplayer game', function(name, level) {
+      socket.on('new multiplayer game', function(name, level, tank) {
         if (server.hasGame(name)) {
           socket.emit('cant start', 'game already exists');
           socket.disconnect();
@@ -741,13 +734,14 @@ module.exports = {
           return;
         }
 
-        game.setLevel(getLevel(levelList, level));
         setupSocketForGame(socket, game);
+        game.setTankType(socket.playerId, tank);
+        game._level_ = getLevel(levelList, level);
         socket.join('g:' + name);
         game._socketRoom = 'g:' + name;
       });
 
-      socket.on('join multiplayer game', function(name) {
+      socket.on('join multiplayer game', function(name, tank) {
         var game = server.getGame(name);
         if (!game) {
           socket.emit('cant start', 'game does not exist');
@@ -762,6 +756,7 @@ module.exports = {
 
         game.addPlayer();
         setupSocketForGame(socket, game);
+        game.setTankType(socket.playerId, tank);
         socket.join('g:' + name);
         game._socketRoom = 'g:' + name;
         game.sendNow('update connected players', game.connectedPlayers);
@@ -770,6 +765,10 @@ module.exports = {
       socket.on('start multiplayer game', function() {
         var game = socket.game;
         if (!game || typeof game.interval !== 'undefined') return;
+        if (game.connectedPlayers < game._level_.players.length) {
+          game._level_.players.length = game.connectedPlayers;
+        }
+        game.setLevel(game._level_);
         sendGameSetup(game);
         game.start();
         game.sendNow('start game');

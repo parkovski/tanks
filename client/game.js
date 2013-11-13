@@ -123,20 +123,17 @@ game.start = function(mode) {
   });
 
   (function() {
+    // singleplayer/tank/level
+    // new/gamename/tank/level
+    // join/gamename/tank
     var args = location.pathname.split('/');
     args = args.slice(game.config.root.split('/').length - 1);
     if (mode === 'singleplayer') {
       socket.emit('start singleplayer', args[1], args[2]);
     } else if (mode === 'newgame') {
-      socket.emit('new multiplayer game', args[1], args[3] || 0);
-      if (args[2]) {
-        socket.emit('set tank', args[2]);
-      }
+      socket.emit('new multiplayer game', args[1], args[3] || 0, args[2]);
     } else if (mode === 'joingame') {
-      socket.emit('join multiplayer game', args[1]);
-      if (args[2]) {
-        socket.emit('set tank', args[2]);
-      }
+      socket.emit('join multiplayer game', args[1], args[2]);
       socket.emit('start multiplayer game');
     }
   })();
