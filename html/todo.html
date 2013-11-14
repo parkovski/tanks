@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Todo List</title>
+  </head>
+  <body>
+    <div>
+      Tanks is developed on
+      <a href="http://github.com/parkovski/tanks/">Parker's github</a>.
+      Patches are appreciated! Email me with any questions:
+      <a href="mailto:parkersnell@outlook.com">parkersnell@outlook.com</a>
+    </div>
+    <div>
+      Todo/wish List, in no particular order of importance or difficulty:
+      <ul>
+        <li>Reduce number of messages between server and client.
+        The server doesn't need to send out messages for every little
+        position change. The client should predict what the server is going to
+        do, and then use smooth animation to correct this when it syncs
+        with the server. If this is accomplished, the server could use bigger
+        time steps to reduce load.</li>
+        <li>Improvements to multiplayer, including a lobby listing available
+        games, invitations, a load balancer that knows which games belong
+        to which server.</li>
+        <li>Better touch screen controls. This includes making the screen not
+        scroll or magnify when you press buttons. Also, if touch is used,
+        mouse controls should be disabled, otherwise the game thinks you're
+        constantly trying to move the gun.</li>
+        <li>Fix Firefox mac support. For some reason actors don't get destroyed
+        on Firefox mac, but it seems to work on all other browsers (including
+        Firefox on windows). Also, Firefox mac doesn't play mp3's, so we need
+        to encode all the sounds as ogg or use a flash fallback.</li>
+        <li>Fix all the actors (obviously). TNT, health beacons, mud and speed
+        patches, explosions, and trees (maybe others) don't work currently.</li>
+        <li>Balance tanks. Currently the hover tank is too fast and powerful.
+        The heavy tank's bullets are too slow also.</li>
+        <li>Better code organization.</li>
+        <li>Power-ups and more weapons/other items.</li>
+        <li>Team mode.</li>
+        <li>Computer players/AI.</li>
+        <li>A level editor.</li>
+        <li>Level and tank previews while choosing them.</li>
+        <li>Get rid of the useless levels where tanks are trapped somewhere.</li>
+        <li>Make pages prettier and more organized.</li>
+        <li>Make pages for error messages instead of just a string in
+        main.js.</li>
+        <li>Save options when user changes them.</li>
+        <li>Facebook integration for invites (good idea or not?).</li>
+        <li>Fix layering in the client.</li>
+        <li>Use the canvas to pick a tank and level.</li>
+      </ul>
+    </div>
+</html>

@@ -243,6 +243,16 @@ game.start = function(mode) {
   });
 
   messageDef('get chat', function(id, text) {
-    $('#chat').append('<div>Player ' + id + ': ' + text + '</div>');
+    var newElem = $('<div>Player ' + id + ': ' + text + '</div>');
+    $('#chat').append(newElem);
+    $('#chat').scrollTop($('#chat')[0].scrollHeight);
+    newElem.css({'background-color': '#ffeebb'})
+      .delay(500).queue(function() {
+        newElem.css({'background-color': '#ffffff'});
+      });
+    $('#chatBox').css({'background-color': '#fffaee'});
+    setTimeout(function() {
+      $('#chatBox').css({'background-color': '#ffffff'});
+    }, 250);
   });
 };

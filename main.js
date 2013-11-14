@@ -127,12 +127,13 @@ function getPage(pageName, mode) {
   return pageText;
 };
 
-var indexPage, singlePlayerPage, newGamePage, joinGamePage;
+var indexPage, singlePlayerPage, newGamePage, joinGamePage, todoPage;
 
 indexPage = getPage('/html/index.html', 'index');
 singlePlayerPage = getPage('/html/game.html', 'singleplayer');
 newGamePage = getPage('/html/game.html', 'newgame');
 joinGamePage = getPage('/html/game.html', 'joingame');
+todoPage = getPage('/html/todo.html', 'todo');
 
 var pages = {
   'index': function(req, res) {
@@ -174,6 +175,9 @@ var pages = {
   },
   'cantjoin': function(req, res) {
     res.write('Couldn\'t join the specified game. Please try again later.');
+  },
+  'todo': function(req, res) {
+    res.write(todoPage);
   }
 };
 
