@@ -64,11 +64,6 @@ Game.prototype.endGame = function(winner) {
     winner = -1;
   }
   this.sendNow('game over', winner);
-  // try to free up some stuff for gc
-  this.actors = null;
-  this.world = null;
-  this.socket = null;
-  this.sockets = null;
   this._server.removeGame(this._name);
 };
 
@@ -412,12 +407,12 @@ Game.prototype.send = function(name, args) {
   this.messages.push({name: name, args: args});
 };
 
-Game.prototype.sendNow = function(name, args) {
+Game.prototype.sendNow = function() {
   var socket = this.socket;
   if (this._socketRoom) {
     socket = this.sockets.to(this._socketRoom);
   }
-  socket.emit(name, args);
+  socket.emit.apply(socket, arguments);
 };
 
 Game.prototype.endTurn = function() {
@@ -640,42 +635,49 @@ function setupSocketForGame(socket, game) {
   });
 
   socket.on('move', function(data) {
+    if (!this.game || !this.game.actors) return;
     var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.moveDirection = data;
   });
 
   socket.on('stopmove', function() {
+    if (!this.game || !this.game.actors) return;
     var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.moveDirection = 0;
   });
 
   socket.on('rotate', function(data) {
+    if (!this.game || !this.game.actors) return;
     var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.turnDirection = data;
   });
 
   socket.on('stoprotate', function() {
+    if (!this.game || !this.game.actors) return;
     var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.turnDirection = 0;
   });
 
   socket.on('rotategun', function(data) {
+    if (!this.game || !this.game.actors) return;
     var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.gunRotationDirection = data;
   });
 
   socket.on('stoprotategun', function() {
+    if (!this.game || !this.game.actors) return;
     var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.gunRotationDirection = 0;
   });
 
   socket.on('rotategunstep', function(data) {
+    if (!this.game || !this.game.actors) return;
     var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.gunRotationDirection = data;
@@ -683,15 +685,21 @@ function setupSocketForGame(socket, game) {
   });
 
   socket.on('fire', function() {
+    if (!this.game || !this.game.actors) return;
     var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.update.shoot = true;
   });
 
   socket.on('mine', function() {
+    if (!this.game || !this.game.actors) return;
     var player = this.game.actors[this.playerId];
     if (!player || !player.playable) return;
     player.update.layMine = true;
+  });
+
+  socket.on('send chat', function(text) {
+    this.game.sendNow('get chat', this.playerId + 1, text);
   });
 }
 

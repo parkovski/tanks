@@ -189,6 +189,7 @@ game.start = function(mode) {
 
   messageDef('set player id', function(data) {
     game.playerId = data;
+    $('#chatPlayerId').text(data + 1);
   });
 
   messageDef('set background', function(data) {
@@ -208,10 +209,6 @@ game.start = function(mode) {
   messageDef('game over', function(winnerId) {
     if (typeof game.interval !== 'undefined') {
       clearInterval(game.interval);
-    }
-    if (socket) {
-      socket.disconnect();
-      socket = game.socket = null;
     }
     if (winnerId === game.playerId) {
       context.drawImage(img['youWin'], 0, 0);
@@ -234,4 +231,18 @@ game.start = function(mode) {
     drawBackground();
     drawActors();
   };
+
+  // TODO: move chat stuff to another file
+  $('#chatInput').keydown(function(e) {
+    var jqInput = $('#chatInput');
+    if (e.which === 13) {
+      socket.emit('send chat', jqInput.val());
+      jqInput.val('');
+      e.preventDefault();
+    }
+  });
+
+  messageDef('get chat', function(id, text) {
+    $('#chat').append('<div>Player ' + id + ': ' + text + '</div>');
+  });
 };

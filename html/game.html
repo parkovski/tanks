@@ -13,11 +13,34 @@
       div.boxed {
         border: 1px solid black;
         padding: 10px;
+        width: 200px;
       }
       div.underline {
         border-bottom: 1px solid black;
         padding-bottom: 5px;
         margin-bottom: 5px;
+      }
+      div#chatBox {
+        margin-top: 5px;
+        position: relative;
+      }
+      div.inputFixer {
+        position: relative;
+        padding-right: 5px;
+      }
+      input#chatInput {
+        width: 100%;
+      }
+      div#chat {
+        border: 1px solid #888888;
+        overflow-y: auto;
+        margin: 5px 0;
+        padding: 2px;
+        word-wrap: break-word;
+      }
+      div#chat div {
+        width: 100%;
+        word-wrap: break-word;
       }
       div.row {
         padding: 40px 0;
@@ -124,12 +147,20 @@
       <audio id="sndShotgun" src="{{root}}media/Shotgun.mp3"></audio>
       <audio id="sndSnare" src="{{root}}media/Snare.mp3"></audio>
     </div>
-    <div class="right boxed">
-      <div class="underline">Options:</div>
-      <div><label><input type="checkbox" checked id="toggleMusic"/> Music</label></div>
-      <div><label><input type="checkbox" checked id="toggleSounds"/> Sounds</label></div>
-      {{mode:!singleplayer<div>Connected: <span id="connectedPlayers">1</span></div>
-      <div><input type="button" id="startGame" value="Start game"/></div>}}
+    <div class="right">
+      <div class="boxed">
+        <div class="underline">Options</div>
+        <div><label><input type="checkbox" checked id="toggleMusic"/> Music</label></div>
+        <div><label><input type="checkbox" checked id="toggleSounds"/> Sounds</label></div>
+        {{mode:!singleplayer<div>Connected: <span id="connectedPlayers">1</span></div>
+        <div><input type="button" id="startGame" value="Start game"/></div>}}
+      </div>
+      {{mode:!singleplayer<div id="chatBox" class="right boxed">
+        <div class="underline">Chat</div>
+        <div>You are player <span id="chatPlayerId">1</span></div>
+        <div id="chat">Type below to chat.</div>
+        <div class="inputFixer"><input type="text" id="chatInput"/></div>
+      </div>}}
     </div>
     <canvas width="800" height="600" id="canvas"></canvas>
     <div id="controls">
