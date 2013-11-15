@@ -140,8 +140,15 @@ game.start = function(mode) {
   $('#startGame').click(function() {
     socket.emit('start multiplayer game');
   });
+  $('#endGame').click(function() {
+    socket.emit('stop game');
+  });
   messageDef('update connected players', function(players) {
     $('#connectedPlayers').text(players);
+    $('#connected').css({'background-color': '#ffeebb'});
+    setTimeout(function() {
+      $('#connected').css({'background-color': '#ffffff'});
+    }, 500);
   });
   messageDef('cant start', function(info) {
     alert('cant start game: ' + info);
@@ -217,6 +224,7 @@ game.start = function(mode) {
     } else {
       context.drawImage(img['youLose'], 0, 0);
     }
+    $('#endGame').prop('disabled', true);
   });
 
   messageDef('start game', function() {
@@ -225,6 +233,8 @@ game.start = function(mode) {
       elem.loop = true;
       elem.play();
     }
+    $('#startGame').prop('disabled', true);
+    $('#endGame').prop('disabled', false);
     game.interval = setInterval(gameLoop, 25);
   });
 
@@ -243,6 +253,12 @@ game.start = function(mode) {
       jqInput.val('');
       e.preventDefault();
     }
+  });
+  $('input[type="text"]').keydown(function(e) {
+    e.stopPropagation();
+  });
+  $('input[type="text"]').keyup(function(e) {
+    e.stopPropagation();
   });
 
   messageDef('get chat', function(text) {

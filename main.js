@@ -18,7 +18,8 @@ var defaults = {
   root: '/',
   exitAfterGamesFinished: false,
   maxGames: 2,
-  defaultLevel: 'SPARTA!'
+  defaultLevel: 'SPARTA!',
+  debug: false
 };
 
 // Allow command line config in the form -v[option]=[value].

@@ -153,8 +153,9 @@
         <div class="underline">Options</div>
         <div><label><input type="checkbox" checked id="toggleMusic"/> Music</label></div>
         <div><label><input type="checkbox" checked id="toggleSounds"/> Sounds</label></div>
-        {{mode:!singleplayer<div>Connected: <span id="connectedPlayers">1</span></div>
-        <div><input type="button" id="startGame" value="Start game"/></div>}}
+        {{mode:!singleplayer<div id="connected">Connected: <span id="connectedPlayers">1</span></div>
+        <div><input type="button" id="startGame" value="Start game"/>
+          <input type="button" id="endGame" value="End game" disabled/></div>}}
       </div>
       {{mode:!singleplayer<div id="chatBox" class="right boxed">
         <div class="underline">Chat</div>

@@ -55,10 +55,16 @@ Game.prototype.isPlaying = function() {
 };
 
 Game.prototype.endGame = function(winner) {
-  this.connectedPlayers = 0;
+  // Note: if the interval is undefined, the game was never started, so we
+  // need to send a game over and remove it from the server. If it is null
+  // however (shouldn't happen), it was already ended, so we do nothing.
+  if (this.interval === null) {
+    return;
+  }
   console.log('destroying game', this._name);
   if (typeof this.interval !== 'undefined') {
     clearInterval(this.interval);
+    this.interval = null;
   }
   if (typeof winner === 'undefined') {
     winner = -1;
@@ -69,8 +75,10 @@ Game.prototype.endGame = function(winner) {
 
 Game.prototype.removePlayer = function() {
   --this.connectedPlayers;
-  if (this.connectedPlayers === 0) {
+  if (this.connectedPlayers <= 0) {
     this.endGame();
+  } else {
+    this.sendNow('update connected players', this.connectedPlayers);
   }
 };
 
@@ -619,21 +627,29 @@ GameServer.prototype.removeGame = function(name) {
 
 var server = new GameServer();
 
-function setupSocketForGame(socket, game) {
+function setupSocketForGame(socket, game, debugMode) {
   socket.game = game;
   socket.playerId = game.nextPlayerId();
 
   socket.emit('set player id', socket.playerId);
 
-  // Not for production
-  socket.on('change id', function(data) {
-    this.playerId = data;
+  if (debugMode) {
+    socket.on('change id', function(data) {
+      this.playerId = data;
+      this.emit('set player id', data);
+    });
+  }
+
+  socket.on('stop game', function() {
+    if (!this.game) return;
+    this.game.endGame();
   });
 
   socket.on('disconnect', function() {
     if (!this.game) return;
     this.game.removePlayer();
-    this.game.sendNow('update connected players', this.game.connectedPlayers);
+    delete this.playerId;
+    delete this.game;
   });
 
   socket.on('move', function(data) {
@@ -723,7 +739,7 @@ module.exports = {
           return;
         }
 
-        setupSocketForGame(socket, game);
+        setupSocketForGame(socket, game, config.debug);
         game.setTankType(socket.playerId, tank);
         game.setLevel(getLevel(levelList, level));
         sendGameSetup(game);
@@ -745,7 +761,7 @@ module.exports = {
           return;
         }
 
-        setupSocketForGame(socket, game);
+        setupSocketForGame(socket, game, config.debug);
         game.setTankType(socket.playerId, tank);
         game._level_ = getLevel(levelList, level);
         socket.join('g:' + name);
@@ -766,7 +782,7 @@ module.exports = {
         }
 
         game.addPlayer();
-        setupSocketForGame(socket, game);
+        setupSocketForGame(socket, game, config.debug);
         game.setTankType(socket.playerId, tank);
         socket.join('g:' + name);
         game._socketRoom = 'g:' + name;

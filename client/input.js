@@ -126,19 +126,22 @@ game.initInput = function() {
   // Key event listeners
   $(document).keydown(function(e) {
     var key = String.fromCharCode(e.which).toLowerCase();
-    // not for production
+    // this only works when debug is turned on on the server.
     if (key === '1' || key === '2' || key === '3' || key === '4') {
-      game.playerId = key - 1;
-      socket.emit('change id', game.playerId);
+      socket.emit('change id', key - 1);
     }
     keyDown(keymap[key]);
-    //e.preventDefault();
+    if (key === ' ') {
+      e.preventDefault();
+    }
   });
 
   $(document).keyup(function(e) {
     var key = String.fromCharCode(e.which).toLowerCase();
     keyUp(keymap[key]);
-    //e.preventDefault();
+    if (key === ' ') {
+      e.preventDefault();
+    }
   });
 
   $(document).mousemove(function(e) {
