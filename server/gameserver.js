@@ -403,8 +403,8 @@ Game.prototype.startTurn = function() {
   this._toCreate = [];
 };
 
-Game.prototype.send = function(name, args) {
-  this.messages.push({name: name, args: args});
+Game.prototype.send = function() {
+  this.messages.push(Array.prototype.slice.call(arguments));
 };
 
 Game.prototype.sendNow = function() {
@@ -424,7 +424,7 @@ Game.prototype.endTurn = function() {
     self.createActorEx(actor);
   });
   if (this.messages.length === 1) {
-    this.sendNow(this.messages[0].name, this.messages[0].args);
+    this.sendNow.apply(this, this.messages[0]);
   } else if (this.messages.length > 1) {
     this.sendNow('message group', this.messages);
   }
@@ -627,11 +627,13 @@ function setupSocketForGame(socket, game) {
 
   // Not for production
   socket.on('change id', function(data) {
-    socket.playerId = data;
+    this.playerId = data;
   });
 
   socket.on('disconnect', function() {
-    socket.game.removePlayer();
+    if (!this.game) return;
+    this.game.removePlayer();
+    this.game.sendNow('update connected players', this.game.connectedPlayers);
   });
 
   socket.on('move', function(data) {
@@ -699,7 +701,8 @@ function setupSocketForGame(socket, game) {
   });
 
   socket.on('send chat', function(text) {
-    this.game.sendNow('get chat', this.playerId + 1, text);
+    if (!this.game) return;
+    this.game.sendNow('get chat', text);
   });
 }
 

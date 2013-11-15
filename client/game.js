@@ -5,7 +5,8 @@ game.start = function(mode) {
   var context = canvas.getContext('2d');
   var socketPort = game.config.port;
   var socket = game.socket = io.connect(
-    location.protocol + '//' + location.hostname + ':' + socketPort
+    location.protocol + '//' + location.hostname + ':' + socketPort,
+    {'sync disconnect on unload': true}
   );
 
   var img = {}, snd = {};
@@ -90,8 +91,8 @@ game.start = function(mode) {
   }
   socket.on('message group', function(data) {
     for (var i = 0; i < data.length; ++i) {
-      var fn = _messageTable[data[i].name];
-      if (fn) fn(data[i].args);
+      var fn = _messageTable[data[i][0]];
+      if (fn) fn.apply(this, data[i].slice(1));
     }
   });
 
@@ -188,8 +189,9 @@ game.start = function(mode) {
   });
 
   messageDef('set player id', function(data) {
+    console.log('set player id', data);
     game.playerId = data;
-    $('#chatPlayerId').text(data + 1);
+    $('#chatName').val('Player ' + (data + 1));
   });
 
   messageDef('set background', function(data) {
@@ -236,14 +238,15 @@ game.start = function(mode) {
   $('#chatInput').keydown(function(e) {
     var jqInput = $('#chatInput');
     if (e.which === 13) {
-      socket.emit('send chat', jqInput.val());
+      var text = $('#chatName').val() + ': ' + jqInput.val();
+      socket.emit('send chat', text);
       jqInput.val('');
       e.preventDefault();
     }
   });
 
-  messageDef('get chat', function(id, text) {
-    var newElem = $('<div>Player ' + id + ': ' + text + '</div>');
+  messageDef('get chat', function(text) {
+    var newElem = $('<div>' + text + '</div>');
     $('#chat').append(newElem);
     $('#chat').scrollTop($('#chat')[0].scrollHeight);
     newElem.css({'background-color': '#ffeebb'})
