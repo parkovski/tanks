@@ -147,7 +147,7 @@ game.start = function(mode) {
     $('#connectedPlayers').text(players);
     $('#connected').css({'background-color': '#ffeebb'});
     setTimeout(function() {
-      $('#connected').css({'background-color': '#ffffff'});
+      $('#connected').css({'background-color': ''});
     }, 500);
   });
   messageDef('cant start', function(info) {
@@ -235,6 +235,7 @@ game.start = function(mode) {
     }
     $('#startGame').prop('disabled', true);
     $('#endGame').prop('disabled', false);
+    $('#canvas').focus();
     game.interval = setInterval(gameLoop, 25);
   });
 
@@ -248,9 +249,12 @@ game.start = function(mode) {
   $('#chatInput').keydown(function(e) {
     var jqInput = $('#chatInput');
     if (e.which === 13) {
-      var text = $('#chatName').val() + ': ' + jqInput.val();
-      socket.emit('send chat', text);
-      jqInput.val('');
+      var text = $('#chatName').val().trim();
+      if (text !== '') {
+        text += ': ' + jqInput.val();
+        socket.emit('send chat', text);
+        jqInput.val('');
+      }
       e.preventDefault();
     }
   });
@@ -267,11 +271,11 @@ game.start = function(mode) {
     $('#chat').scrollTop($('#chat')[0].scrollHeight);
     newElem.css({'background-color': '#ffeebb'})
       .delay(500).queue(function() {
-        newElem.css({'background-color': '#ffffff'});
+        newElem.css({'background-color': ''});
       });
     $('#chatBox').css({'background-color': '#fffaee'});
     setTimeout(function() {
-      $('#chatBox').css({'background-color': '#ffffff'});
+      $('#chatBox').css({'background-color': ''});
     }, 250);
   });
 };
