@@ -1,48 +1,28 @@
 var game = game || {};
-game.clientMode = 'tankPicker';
-game.start = function(mode) {
-  var canvas = document.getElementById('canvas');
-  var context = canvas.getContext('2d');
-  var socketPort = game.config.port;
-  var socket = game.socket = io.connect(
-    location.protocol + '//' + location.hostname + ':' + socketPort,
-    {'sync disconnect on unload': true}
-  );
+(function() {
+  game.draw = function() {
+    var context = this.context;
+    var actors = this.actors;
 
-  var img = {}, snd = {};
-  [].forEach.call($('#images > img'), function(i) {
-    img[i.id] = i;
-  });
-  [].forEach.call($('#sounds > audio'), function(s) {
-    snd[s.id] = s;
-  });
+    var drawHealth = function(actor) {
+      var baseHealth = actor.data.baseHealth;
+      var percentHealth = actor.health / baseHealth;
+      var yoffset = actor.gfx.height / 2 + 20;
+      var width = actor.gfx.width * 1.5;
+      var height = 6;
+      var xoffset = width / 2;
+      var redwidth = (1 - percentHealth) * width;
+      context.translate(-xoffset, -yoffset);
+      context.fillStyle = '#00ff00';
+      context.fillRect(0, 0, width, height);
+      context.fillStyle = '#ff0000';
+      context.fillRect(width - redwidth, 0, redwidth, height);
+      context.strokeStyle = '#000';
+      context.strokeRect(0, 0, width, height);
+      context.translate(xoffset, yoffset);
+    };
 
-  var actors = game.actors = [];
-  var backgroundImg = 'map3';
-  var music = 'elevatorMusic';
-  $('#toggleMusic').change(function() {
-    var elem = document.getElementById(music);
-    if ($(this).is(':checked')) {
-      elem.loop = true;
-      elem.play();
-    } else {
-      elem.pause();
-    }
-  });
-
-  var playSounds = true;
-  $('#toggleSounds').change(function() {
-    playSounds = $(this).is(':checked');
-  });
-
-  game.playerId = 0;
-
-  game.initInput();
-
-  function drawBackground() {
-    context.drawImage(img[backgroundImg], 0, 0);
-  }
-  function drawActors() {
+    context.drawImage(this.images[this.backgroundImg], 0, 0);
     for (var i = 0; i < actors.length; ++i) {
       var a = actors[i];
       if (!a || !a.gfx) continue;
@@ -55,7 +35,7 @@ game.start = function(mode) {
       context.rotate(r);
       context.drawImage(gfx, -gfx.width / 2, -gfx.height / 2);
       if (a.gunR != void 0) {
-        var gunGfx = img[a.gunGraphic];
+        var gunGfx = this.images[a.gunGraphic];
         var gunR = a.gunR;
         context.rotate(gunR - r);
         context.drawImage(gunGfx, -gunGfx.width / 2, -gunGfx.height / 2);
@@ -65,217 +45,107 @@ game.start = function(mode) {
       }
       context.translate(-x, -y);
     }
-  }
-  function drawHealth(actor) {
-    var baseHealth = actor.data.baseHealth;
-    var percentHealth = actor.health / baseHealth;
-    var yoffset = actor.gfx.height / 2 + 20;
-    var width = actor.gfx.width * 1.5;
-    var height = 6;
-    var xoffset = width / 2;
-    var redwidth = (1 - percentHealth) * width;
-    context.translate(-xoffset, -yoffset);
-    context.fillStyle = '#00ff00';
-    context.fillRect(0, 0, width, height);
-    context.fillStyle = '#ff0000';
-    context.fillRect(width - redwidth, 0, redwidth, height);
-    context.strokeStyle = '#000';
-    context.strokeRect(0, 0, width, height);
-    context.translate(xoffset, yoffset);
-  }
+  };
 
-  var _messageTable = {};
-  function messageDef(name, handler) {
-    _messageTable[name] = handler;
-    socket.on(name, handler);
-  }
-  socket.on('message group', function(data) {
-    for (var i = 0; i < data.length; ++i) {
-      var fn = _messageTable[data[i][0]];
-      if (fn) fn.apply(this, data[i].slice(1));
+  game.drawFinishScreen = function(win) {
+    var name;
+    if (win) {
+      name = 'youWin';
+    } else {
+      name = 'youLose';
     }
-  });
+    context.drawImage(this.images[name], 0, 0);
+  };
 
-  messageDef('moveto', function(data) {
-    var a = actors[data.index];
-    a.x = data.x;
-    a.y = data.y;
-  });
-
-  messageDef('rotateto', function(data) {
-    var a = actors[data.index];
-    a.r = data.r;
-  });
-
-  messageDef('rotategunto', function(data) {
-    var a = actors[data.index];
-    a.gunR = data.r;
-  });
-
-  messageDef('sethealth', function(data) {
-    var a = actors[data.index];
-    a.health = data.health;
-  });
-
-  messageDef('set graphic', function(data) {
-    var a = actors[data.index];
-    a.graphic = data.graphic;
-    a.gfx = img[a.graphic];
-  });
-
-  (function() {
-    // singleplayer/tank/level
-    // new/gamename/tank/level
-    // join/gamename/tank
-    var args = location.pathname.split('/');
-    args = args.slice(game.config.root.split('/').length - 1);
-    if (mode === 'singleplayer') {
-      socket.emit('start singleplayer', args[1], args[2]);
-    } else if (mode === 'newgame') {
-      socket.emit('new multiplayer game', args[1], args[3] || 0, args[2]);
-    } else if (mode === 'joingame') {
-      socket.emit('join multiplayer game', args[1], args[2]);
-    }
-  })();
-  $('#startGame').click(function() {
-    socket.emit('start multiplayer game');
-  });
-  $('#endGame').click(function() {
-    socket.emit('stop game');
-  });
-  messageDef('update connected players', function(players) {
-    $('#connectedPlayers').text(players);
-    $('#connected').css({'background-color': '#ffeebb'});
-    setTimeout(function() {
-      $('#connected').css({'background-color': ''});
-    }, 500);
-  });
-  messageDef('cant start', function(info) {
-    alert('cant start game: ' + info);
-    // do something
-  });
-
-  function initActor(actor) {
+  game.initActor = function(actor) {
     actor.data = actorData[actor.type];
     actor.graphic = actor.data.graphic;
     if (typeof actor.showTo === 'undefined' || actor.showTo === game.playerId) {
-      actor.gfx = img[actor.graphic];
+      actor.gfx = game.images[actor.graphic];
     }
     if (actor.data.gunGraphic) {
       actor.gunGraphic = actor.data.gunGraphic;
     }
-    if (actor.data.creationSound && playSounds) {
-      var elem = document.getElementById(actor.data.creationSound);
+    if (actor.data.creationSound && game.playSounds) {
+      var elem = game.sounds[actor.data.creationSound];
       elem.currentTime = 0;
       elem.play();
     }
     if (actor.data.baseHealth) {
       actor.health = actor.data.baseHealth;
     }
-  }
-
-  messageDef('set actors', function(data) {
-    actors = game.actors = [];
-    for (var i = 0; i < data.length; ++i) {
-      initActor(data[i]);
-      actors.push(data[i]);
-    }
-  });
-
-  messageDef('create actor', function(data) {
-    actors[data.id] = data;
-    initActor(data);
-  });
-
-  messageDef('remove actor', function(data) {
-    delete actors[data];
-    if (data === game.playerId) {
-      game.unbindInputEvents();
-      game.mousestate.checkRotation = function() {};
-    }
-  });
-
-  messageDef('set player id', function(data) {
-    console.log('set player id', data);
-    game.playerId = data;
-    $('#chatName').val('Player ' + (data + 1));
-  });
-
-  messageDef('set background', function(data) {
-    backgroundImg = data;
-  });
-
-  messageDef('set music', function(data) {
-    music = data;
-  });
-
-  messageDef('disconnect', function() {
-    if (typeof game.interval !== 'undefined') {
-      clearInterval(game.interval);
-    }
-  });
-
-  messageDef('game over', function(winnerId) {
-    if (typeof game.interval !== 'undefined') {
-      clearInterval(game.interval);
-    }
-    if (winnerId === game.playerId) {
-      context.drawImage(img['youWin'], 0, 0);
-    } else {
-      context.drawImage(img['youLose'], 0, 0);
-    }
-    $('#endGame').prop('disabled', true);
-  });
-
-  messageDef('start game', function() {
-    if ($('#toggleMusic').is(':checked')) {
-      var elem = document.getElementById(music);
-      elem.loop = true;
-      elem.play();
-    }
-    $('#startGame').prop('disabled', true);
-    $('#endGame').prop('disabled', false);
-    $('#canvas').focus();
-    game.interval = setInterval(gameLoop, 25);
-  });
-
-  var gameLoop = function() {
-    game.mousestate.checkRotation();
-    drawBackground();
-    drawActors();
   };
 
-  // TODO: move chat stuff to another file
-  $('#chatInput').keydown(function(e) {
-    var jqInput = $('#chatInput');
-    if (e.which === 13) {
-      var text = $('#chatName').val().trim();
-      if (text !== '') {
-        text += ': ' + jqInput.val();
-        socket.emit('send chat', text);
-        jqInput.val('');
-      }
-      e.preventDefault();
+  game.initGame = function(mode) {
+    // Choose the type of game to start based on the URL.
+    // singleplayer/tank/level
+    // new/gamename/tank/level
+    // join/gamename/tank
+    var args = location.pathname.split('/');
+    args = args.slice(game.config.root.split('/').length - 1);
+    if (mode === 'singleplayer') {
+      this.socket.emit('start singleplayer', args[1], args[2]);
+    } else if (mode === 'newgame') {
+      this.socket.emit('new multiplayer game', args[1], args[3] || 0, args[2]);
+    } else if (mode === 'joingame') {
+      this.socket.emit('join multiplayer game', args[1], args[2]);
     }
-  });
-  $('input[type="text"]').keydown(function(e) {
-    e.stopPropagation();
-  });
-  $('input[type="text"]').keyup(function(e) {
-    e.stopPropagation();
-  });
 
-  messageDef('get chat', function(text) {
-    var newElem = $('<div>' + text + '</div>');
-    $('#chat').append(newElem);
-    $('#chat').scrollTop($('#chat')[0].scrollHeight);
-    newElem.css({'background-color': '#ffeebb'})
-      .delay(500).queue(function() {
-        newElem.css({'background-color': ''});
-      });
-    $('#chatBox').css({'background-color': '#fffaee'});
-    setTimeout(function() {
-      $('#chatBox').css({'background-color': ''});
-    }, 250);
-  });
-};
+    $('#startGame').click(function() {
+      game.socket.emit('start multiplayer game');
+    });
+
+    $('#endGame').click(function() {
+      game.socket.emit('stop game');
+    });
+  };
+
+  game.mainLoop = function() {
+    game.mousestate.checkRotation();
+    game.draw();
+  };
+
+  game.start = function(mode) {
+    var socketPort = this.config.port;
+    this.socket = io.connect(
+      location.protocol + '//' + location.hostname + ':' + socketPort,
+      {'sync disconnect on unload': true}
+    );
+
+    var canvas = document.getElementById('canvas');
+    this.context = canvas.getContext('2d');
+
+    this.images = {};
+    this.sounds = {};
+    [].forEach.call($('#images > img'), function(i) {
+      game.images[i.id] = i;
+    });
+    [].forEach.call($('#sounds > audio'), function(s) {
+      game.sounds[s.id] = s;
+    });
+
+    this.actors = [];
+    this.backgroundImg = 'map3';
+    this.music = 'elevatorMusic';
+    $('#toggleMusic').change(function() {
+      var elem = game.sounds[music];
+      if ($(this).is(':checked')) {
+        elem.loop = true;
+        elem.play();
+      } else {
+        elem.pause();
+      }
+    });
+
+    this.playSounds = true;
+    $('#toggleSounds').change(function() {
+      game.playSounds = $(this).is(':checked');
+    });
+
+    this.playerId = 0;
+
+    this.initInput();
+    this.initMessages();
+    this.initGame(mode);
+  };
+})();
