@@ -194,6 +194,8 @@ var app = connect()
   })
   .listen(port);
 
+console.log('Listening on port ' + port);
+
 gameserver.server.setMaxGames(config.maxGames);
 if (config.exitAfterGamesFinished) {
   gameserver.server.setExitAfterGamesFinished(true);
